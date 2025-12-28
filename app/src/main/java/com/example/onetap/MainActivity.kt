@@ -10,6 +10,7 @@ import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.Keep
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -36,13 +37,18 @@ import com.example.onetap.ui.theme.OneTapTheme
 import com.example.onetap.repository.VideoRepository
 import com.example.onetap.utils.UrlValidator
 import com.example.onetap.utils.DownloadNotificationManager
+import com.example.onetap.utils.UpdateManager
+import com.example.onetap.ui.UpdateDialog
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val TAG = "OneTap_MainActivity"
+    private lateinit var updateManager: UpdateManager
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        updateManager = UpdateManager(this)
         
         setContent {
             OneTapTheme {
@@ -61,6 +67,11 @@ class MainActivity : ComponentActivity() {
             startBubbleService(this)
         }
     }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        updateManager.cleanup()
+    }
 }
 
 @Composable
@@ -69,34 +80,65 @@ fun MinimalScreen() {
     val scope = rememberCoroutineScope()
     val videoRepository = remember { VideoRepository() }
     val notificationManager = remember { DownloadNotificationManager(context) }
+    val updateManager = remember { UpdateManager(context) }
     val uriHandler = LocalUriHandler.current
     
     var isDownloading by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("tap to download video") }
     var showTutorial by remember { mutableStateOf(false) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var updateInfo by remember { mutableStateOf<com.example.onetap.utils.UpdateInfo?>(null) }
+    var isUpdating by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableStateOf(0) }
     
-    // Check if tutorial should be shown
+    // Check for updates on app start
     LaunchedEffect(Unit) {
+        Log.i("OneTap_MainActivity", "🚀 App started - initializing...")
+        
         val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val hasCompletedTutorial = sharedPreferences.getBoolean("tutorial_completed", false)
         val hasRequestedOverlay = sharedPreferences.getBoolean("has_requested_overlay", false)
         
+        Log.d("OneTap_MainActivity", "📚 Tutorial completed: $hasCompletedTutorial")
+        Log.d("OneTap_MainActivity", "🔄 Overlay requested: $hasRequestedOverlay")
+        
+        // Check for updates first
+        Log.i("OneTap_MainActivity", "🔍 Starting update check...")
+        try {
+            val update = updateManager.checkForUpdates()
+            if (update?.isUpdateAvailable == true) {
+                Log.i("OneTap_MainActivity", "🎉 UPDATE FOUND! Version ${update.versionName}")
+                updateInfo = update
+                showUpdateDialog = true
+            } else if (update != null) {
+                Log.i("OneTap_MainActivity", "✅ App is up to date (v${update.versionCode})")
+            } else {
+                Log.w("OneTap_MainActivity", "⚠️ Update check returned null - network issue?")
+            }
+        } catch (e: Exception) {
+            Log.e("OneTap_MainActivity", "💥 Update check failed: ${e.message}", e)
+        }
+        
         if (!hasCompletedTutorial) {
+            Log.d("OneTap_MainActivity", "📖 Showing tutorial...")
             showTutorial = true
         } else {
             // Handle overlay permission for returning users
             if (!hasRequestedOverlay) {
                 if (!Settings.canDrawOverlays(context)) {
+                    Log.d("OneTap_MainActivity", "🔐 Requesting overlay permission...")
                     val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                         data = Uri.parse("package:${context.packageName}")
                     }
                     context.startActivity(intent)
                     sharedPreferences.edit().putBoolean("has_requested_overlay", true).apply()
                 } else {
+                    Log.d("OneTap_MainActivity", "✅ Overlay permission granted, starting service...")
                     startBubbleService(context)
                     sharedPreferences.edit().putBoolean("has_requested_overlay", true).apply()
                 }
             } else if (Settings.canDrawOverlays(context)) {
+                Log.d("OneTap_MainActivity", "🔄 Restarting bubble service...")
                 startBubbleService(context)
             }
         }
@@ -107,14 +149,14 @@ fun MinimalScreen() {
             .fillMaxSize()
             .background(Color.Black)
             .then(
-                if (showTutorial) Modifier.blur(10.dp) else Modifier
+                if (showTutorial || showUpdateDialog) Modifier.blur(10.dp) else Modifier
             )
     ) {
         // Main tap area
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clickable(enabled = !isDownloading && !showTutorial) {
+                .clickable(enabled = !isDownloading && !showTutorial && !showUpdateDialog) {
                     scope.launch {
                         handleTapToDownload(
                             context = context,
@@ -187,6 +229,27 @@ fun MinimalScreen() {
                 }
             )
         }
+    }
+    
+    // Update Dialog
+    if (showUpdateDialog && updateInfo != null) {
+        UpdateDialog(
+            updateInfo = updateInfo!!,
+            onUpdateClick = {
+                isUpdating = true
+                updateManager.downloadAndInstallUpdate(
+                    updateInfo!!
+                ) { progress ->
+                    updateProgress = progress
+                }
+            },
+            onDismiss = {
+                showUpdateDialog = false
+                updateInfo = null
+            },
+            isDownloading = isUpdating,
+            downloadProgress = updateProgress
+        )
     }
     
     // Tutorial Modal
@@ -293,12 +356,12 @@ fun TutorialModal(onComplete: () -> Unit) {
     
     val tutorialSteps = listOf(
         TutorialStep(
-            title = "Welcome to OneTap",
-            description = "The fastest way to download videos from TikTok, Instagram, and other platforms."
+            title = "This is OneTap!",
+            description = "The fastest way to download videos from TikTok, Instagram, Facebook, Twitter and YouTube."
         ),
         TutorialStep(
             title = "How it works",
-            description = "Copy any video URL from your favorite app, then come back and tap anywhere on the screen."
+            description = "Copy any video URL from your social media app, then tap anywhere on the screen."
         ),
         TutorialStep(
             title = "Background downloads",
@@ -385,24 +448,15 @@ fun TutorialModal(onComplete: () -> Unit) {
                     }
                     
                     if (currentStep == tutorialSteps.size - 1) {
-                        // Last step - LinkedIn button
-                        Column {
-                            Button(
-                                onClick = {
-                                    uriHandler.openUri("https://www.linkedin.com/in/resilience-fred")
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Blue)
-                            ) {
-                                Text("Connect on LinkedIn", color = Color.White)
-                            }
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            TextButton(
-                                onClick = onComplete
-                            ) {
-                                Text("Skip & Continue", color = Color.Gray)
-                            }
+                        // Last step - LinkedIn button (mandatory)
+                        Button(
+                            onClick = {
+                                uriHandler.openUri("https://www.linkedin.com/in/resilience-fred")
+                                onComplete() // Complete tutorial after clicking LinkedIn
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Blue)
+                        ) {
+                            Text("Connect on LinkedIn", color = Color.White)
                         }
                     } else {
                         Button(
@@ -418,6 +472,7 @@ fun TutorialModal(onComplete: () -> Unit) {
     }
 }
 
+@Keep
 data class TutorialStep(
     val title: String,
     val description: String

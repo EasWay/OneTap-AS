@@ -120,7 +120,13 @@ class BubbleService : Service() {
         isDownloading = true
 
         updateBubbleAppearance(true) // Dim bubble to show working state
-        Toast.makeText(this, "Download Starting...", Toast.LENGTH_SHORT).show()
+        
+        // Show enhanced starting toast
+        val startToast = Toast.makeText(this, "⬇️ Download Starting...", Toast.LENGTH_SHORT)
+        startToast.setGravity(Gravity.CENTER_VERTICAL or Gravity.CENTER_HORIZONTAL, 0, -200)
+        startToast.show()
+        
+        Log.i(TAG, "🚀 Starting download for URL: $url")
         
         serviceScope.launch(Dispatchers.IO) {
             try {
@@ -128,18 +134,22 @@ class BubbleService : Service() {
                 val result = videoRepository.downloadVideo(applicationContext, url)
                 
                 withContext(Dispatchers.Main) {
-                    val successMessage = if (result.contains("Success") || result.contains("Saved")) {
-                        "Download Complete!"
+                    val isSuccess = result.contains("Success") || result.contains("Saved")
+                    val successMessage = if (isSuccess) {
+                        "✅ Download Complete!"
                     } else {
-                        result
+                        "❌ $result"
                     }
-                    Toast.makeText(applicationContext, successMessage, Toast.LENGTH_LONG).show()
+                    
+                    // Show enhanced toast for download completion
+                    showDownloadCompleteToast(successMessage, isSuccess)
+                    
                     isDownloading = false
                     updateBubbleAppearance(false) // Restore bubble
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(applicationContext, "⚠️ Download failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    showDownloadCompleteToast("⚠️ Download failed: ${e.message}", false)
                     isDownloading = false
                     updateBubbleAppearance(false)
                 }
@@ -150,6 +160,50 @@ class BubbleService : Service() {
     private fun updateBubbleAppearance(isBusy: Boolean) {
         val bubbleImage = bubbleView?.findViewById<ImageView>(R.id.bubble_image)
         bubbleImage?.alpha = if (isBusy) 0.5f else 1.0f
+    }
+    
+    private fun showDownloadCompleteToast(message: String, isSuccess: Boolean) {
+        // Create a more prominent toast for download completion
+        val toast = Toast.makeText(applicationContext, message, Toast.LENGTH_LONG)
+        
+        // Position the toast higher on screen to be more visible
+        toast.setGravity(Gravity.CENTER_VERTICAL or Gravity.CENTER_HORIZONTAL, 0, -200)
+        
+        toast.show()
+        
+        // Also log the completion for debugging
+        if (isSuccess) {
+            Log.i(TAG, "🎉 Video download completed successfully")
+        } else {
+            Log.e(TAG, "❌ Video download failed: $message")
+        }
+        
+        // Update notification to show completion status
+        updateNotificationForDownloadComplete(isSuccess)
+    }
+    
+    private fun updateNotificationForDownloadComplete(isSuccess: Boolean) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        val title = if (isSuccess) "✅ Download Complete" else "❌ Download Failed"
+        val text = if (isSuccess) "Video saved successfully" else "Check your connection"
+        
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(R.mipmap.ic_launcher_round)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher_round))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(false)
+            .build()
+        
+        notificationManager.notify(NOTIFICATION_ID, notification)
+        
+        // Reset notification back to normal after 3 seconds
+        serviceScope.launch {
+            kotlinx.coroutines.delay(3000)
+            notificationManager.notify(NOTIFICATION_ID, createNotification())
+        }
     }
     
     private fun addBubbleOverlay() {
