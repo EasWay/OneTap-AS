@@ -1,0 +1,224 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.onetap"
+4    android:versionCode="4"
+5    android:versionName="1.3" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="36" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:5:5-67
+11-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:5:22-64
+12    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+12-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:6:5-77
+12-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:6:22-74
+13    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+13-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:7:5-87
+13-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:7:22-84
+14    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+14-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:8:5-78
+14-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:8:22-75
+15    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+15-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:9:5-83
+15-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:9:22-80
+16    <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
+16-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:10:5-88
+16-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:10:22-85
+17    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+17-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:12:5-77
+17-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:12:22-74
+18    <uses-permission
+18-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:14:5-15:38
+19        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+19-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:14:22-78
+20        android:maxSdkVersion="29" />
+20-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:15:9-35
+21    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+21-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:17:5-76
+21-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:17:22-73
+22    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+22-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:18:5-75
+22-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:18:22-72
+23
+24    <permission
+24-->[androidx.core:core:1.17.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\3214c1e33b9b81fb401a7caf3037bf41\transformed\core-1.17.0\AndroidManifest.xml:22:5-24:47
+25        android:name="com.example.onetap.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+25-->[androidx.core:core:1.17.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\3214c1e33b9b81fb401a7caf3037bf41\transformed\core-1.17.0\AndroidManifest.xml:23:9-81
+26        android:protectionLevel="signature" />
+26-->[androidx.core:core:1.17.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\3214c1e33b9b81fb401a7caf3037bf41\transformed\core-1.17.0\AndroidManifest.xml:24:9-44
+27
+28    <uses-permission android:name="com.example.onetap.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+28-->[androidx.core:core:1.17.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\3214c1e33b9b81fb401a7caf3037bf41\transformed\core-1.17.0\AndroidManifest.xml:26:5-97
+28-->[androidx.core:core:1.17.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\3214c1e33b9b81fb401a7caf3037bf41\transformed\core-1.17.0\AndroidManifest.xml:26:22-94
+29
+30    <application
+30-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:20:5-66:19
+31        android:allowBackup="true"
+31-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:21:9-35
+32        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+32-->[androidx.core:core:1.17.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\3214c1e33b9b81fb401a7caf3037bf41\transformed\core-1.17.0\AndroidManifest.xml:28:18-86
+33        android:dataExtractionRules="@xml/data_extraction_rules"
+33-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:22:9-65
+34        android:debuggable="true"
+35        android:extractNativeLibs="false"
+36        android:fullBackupContent="@xml/backup_rules"
+36-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:23:9-54
+37        android:icon="@mipmap/ic_launcher"
+37-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:24:9-43
+38        android:label="@string/app_name"
+38-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:25:9-41
+39        android:roundIcon="@mipmap/ic_launcher_round"
+39-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:26:9-54
+40        android:supportsRtl="true"
+40-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:27:9-35
+41        android:testOnly="true"
+42        android:theme="@style/Theme.OneTap"
+42-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:28:9-44
+43        android:usesCleartextTraffic="true" >
+43-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:29:9-44
+44        <activity
+44-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:32:9-41:20
+45            android:name="com.example.onetap.MainActivity"
+45-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:33:13-41
+46            android:exported="true"
+46-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:34:13-36
+47            android:label="@string/app_name"
+47-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:35:13-45
+48            android:theme="@style/Theme.OneTap" >
+48-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:36:13-48
+49            <intent-filter>
+49-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:37:13-40:29
+50                <action android:name="android.intent.action.MAIN" />
+50-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:38:17-69
+50-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:38:25-66
+51
+52                <category android:name="android.intent.category.LAUNCHER" />
+52-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:39:17-77
+52-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:39:27-74
+53            </intent-filter>
+54        </activity>
+55
+56        <service
+56-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:43:9-46:56
+57            android:name="com.example.onetap.BubbleService"
+57-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:44:13-42
+58            android:exported="false"
+58-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:45:13-37
+59            android:foregroundServiceType="dataSync" />
+59-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:46:13-53
+60
+61        <activity
+61-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:48:9-54:40
+62            android:name="com.example.onetap.ClipboardReaderActivity"
+62-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:49:13-52
+63            android:excludeFromRecents="true"
+63-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:51:13-46
+64            android:exported="false"
+64-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:54:13-37
+65            android:noHistory="true"
+65-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:52:13-37
+66            android:taskAffinity=""
+66-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:53:13-36
+67            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+67-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:50:13-72
+68
+69        <provider
+70            android:name="androidx.core.content.FileProvider"
+70-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:57:13-62
+71            android:authorities="com.example.onetap.fileprovider"
+71-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:58:13-64
+72            android:exported="false"
+72-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:59:13-37
+73            android:grantUriPermissions="true" >
+73-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:60:13-47
+74            <meta-data
+74-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:61:13-63:54
+75                android:name="android.support.FILE_PROVIDER_PATHS"
+75-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:62:17-67
+76                android:resource="@xml/file_paths" />
+76-->C:\Users\Godfred\Downloads\App\OneTap\app\src\main\AndroidManifest.xml:63:17-51
+77        </provider>
+78
+79        <activity
+79-->[androidx.compose.ui:ui-tooling-android:1.7.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\f38b5c402d23b30c2e2875c7c76f10e0\transformed\ui-tooling-release\AndroidManifest.xml:23:9-25:39
+80            android:name="androidx.compose.ui.tooling.PreviewActivity"
+80-->[androidx.compose.ui:ui-tooling-android:1.7.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\f38b5c402d23b30c2e2875c7c76f10e0\transformed\ui-tooling-release\AndroidManifest.xml:24:13-71
+81            android:exported="true" />
+81-->[androidx.compose.ui:ui-tooling-android:1.7.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\f38b5c402d23b30c2e2875c7c76f10e0\transformed\ui-tooling-release\AndroidManifest.xml:25:13-36
+82        <activity
+82-->[androidx.compose.ui:ui-test-manifest:1.7.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\bf0789ae4c448878dc74378ebdfb6958\transformed\ui-test-manifest-1.7.0\AndroidManifest.xml:23:9-25:39
+83            android:name="androidx.activity.ComponentActivity"
+83-->[androidx.compose.ui:ui-test-manifest:1.7.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\bf0789ae4c448878dc74378ebdfb6958\transformed\ui-test-manifest-1.7.0\AndroidManifest.xml:24:13-63
+84            android:exported="true" />
+84-->[androidx.compose.ui:ui-test-manifest:1.7.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\bf0789ae4c448878dc74378ebdfb6958\transformed\ui-test-manifest-1.7.0\AndroidManifest.xml:25:13-36
+85
+86        <provider
+86-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\37f27ceb4a61ff296c8d63ebd994f71d\transformed\emoji2-1.3.0\AndroidManifest.xml:24:9-32:20
+87            android:name="androidx.startup.InitializationProvider"
+87-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\37f27ceb4a61ff296c8d63ebd994f71d\transformed\emoji2-1.3.0\AndroidManifest.xml:25:13-67
+88            android:authorities="com.example.onetap.androidx-startup"
+88-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\37f27ceb4a61ff296c8d63ebd994f71d\transformed\emoji2-1.3.0\AndroidManifest.xml:26:13-68
+89            android:exported="false" >
+89-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\37f27ceb4a61ff296c8d63ebd994f71d\transformed\emoji2-1.3.0\AndroidManifest.xml:27:13-37
+90            <meta-data
+90-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\37f27ceb4a61ff296c8d63ebd994f71d\transformed\emoji2-1.3.0\AndroidManifest.xml:29:13-31:52
+91                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+91-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\37f27ceb4a61ff296c8d63ebd994f71d\transformed\emoji2-1.3.0\AndroidManifest.xml:30:17-75
+92                android:value="androidx.startup" />
+92-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\37f27ceb4a61ff296c8d63ebd994f71d\transformed\emoji2-1.3.0\AndroidManifest.xml:31:17-49
+93            <meta-data
+93-->[androidx.lifecycle:lifecycle-process:2.9.3] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\6956151e7cbad02f21397797fd055ca7\transformed\lifecycle-process-2.9.3\AndroidManifest.xml:29:13-31:52
+94                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+94-->[androidx.lifecycle:lifecycle-process:2.9.3] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\6956151e7cbad02f21397797fd055ca7\transformed\lifecycle-process-2.9.3\AndroidManifest.xml:30:17-78
+95                android:value="androidx.startup" />
+95-->[androidx.lifecycle:lifecycle-process:2.9.3] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\6956151e7cbad02f21397797fd055ca7\transformed\lifecycle-process-2.9.3\AndroidManifest.xml:31:17-49
+96            <meta-data
+96-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
+97                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+97-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
+98                android:value="androidx.startup" />
+98-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
+99        </provider>
+100
+101        <receiver
+101-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:34:9-52:20
+102            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+102-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:35:13-76
+103            android:directBootAware="false"
+103-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:36:13-44
+104            android:enabled="true"
+104-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:37:13-35
+105            android:exported="true"
+105-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:38:13-36
+106            android:permission="android.permission.DUMP" >
+106-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:39:13-57
+107            <intent-filter>
+107-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:40:13-42:29
+108                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+108-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:17-91
+108-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:25-88
+109            </intent-filter>
+110            <intent-filter>
+110-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:43:13-45:29
+111                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+111-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:17-85
+111-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:25-82
+112            </intent-filter>
+113            <intent-filter>
+113-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:46:13-48:29
+114                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+114-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:17-88
+114-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:25-85
+115            </intent-filter>
+116            <intent-filter>
+116-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:49:13-51:29
+117                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+117-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:17-95
+117-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Godfred\.gradle\caches\8.11.1\transforms\d901372bf9c7b7edd04a2aa8ba9bd58b\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:25-92
+118            </intent-filter>
+119        </receiver>
+120    </application>
+121
+122</manifest>

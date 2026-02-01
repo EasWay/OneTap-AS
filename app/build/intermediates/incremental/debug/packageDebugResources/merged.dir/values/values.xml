@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="ic_launcher_background">#000000</color>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="white">#FFFFFFFF</color>
+    <string name="app_name">OneTap</string>
+    <string name="clipboard_empty_message">Please copy a video URL to your clipboard first, then try again.</string>
+    <string name="clipboard_empty_title">Clipboard Empty</string>
+    <string name="download_completed">Download completed successfully!</string>
+    <string name="download_failed">Download failed</string>
+    <string name="got_it">Got it!</string>
+    <string name="ok">OK</string>
+    <string name="paste_and_download">Paste &amp; Download</string>
+    <string name="starting_download">Starting download...</string>
+    <string name="welcome_message">Copy a video URL to your clipboard, then tap the button to download it instantly!</string>
+    <string name="welcome_title">Welcome to OneTap!</string>
+    <style name="Theme.OneTap" parent="android:Theme.Material.Light.NoActionBar"/>
+</resources>

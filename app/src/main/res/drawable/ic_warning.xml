@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Orange circular background -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#F59E0B" />
+        </shape>
+    </item>
+    
+    <!-- White warning icon -->
+    <item
+        android:left="4dp"
+        android:top="4dp"
+        android:right="4dp"
+        android:bottom="4dp">
+        <vector
+            android:width="10dp"
+            android:height="10dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M1,21h22L12,2 1,21zM13,18h-2v-2h2v2zM13,14h-2v-4h2v4z" />
+        </vector>
+    </item>
+    
+</layer-list>

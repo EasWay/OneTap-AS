@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="32dp"
+    android:background="@drawable/bg_sonner"
+    android:elevation="6dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <!-- Custom Spinner (Uses ic_spinner.xml) -->
+    <ImageView
+        android:id="@+id/loadingSpinner"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:src="@drawable/ic_spinner"
+        android:visibility="gone" />
+
+    <!-- Success Icon -->
+    <ImageView
+        android:id="@+id/successIcon"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:src="@drawable/ic_success_check"
+        android:visibility="gone" />
+
+    <!-- Error Icon -->
+    <ImageView
+        android:id="@+id/errorIcon"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:src="@drawable/ic_error_x"
+        android:visibility="gone" />
+
+    <!-- Warning Icon -->
+    <ImageView
+        android:id="@+id/warningIcon"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:src="@drawable/ic_warning"
+        android:visibility="gone" />
+
+    <!-- Info Icon -->
+    <ImageView
+        android:id="@+id/infoIcon"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:src="@drawable/ic_info_i"
+        android:visibility="gone" />
+
+    <!-- Message -->
+    <TextView
+        android:id="@+id/messageText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:fontFamily="sans-serif-medium"
+        android:text="Downloading..."
+        android:textColor="#FFFFFF"
+        android:textSize="14sp" />
+
+</LinearLayout>

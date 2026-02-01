@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">OneTap</string>
+    <string name="paste_and_download">Paste &amp; Download</string>
+    <string name="welcome_title">Welcome to OneTap!</string>
+    <string name="welcome_message">Copy a video URL to your clipboard, then tap the button to download it instantly!</string>
+    <string name="got_it">Got it!</string>
+    <string name="clipboard_empty_title">Clipboard Empty</string>
+    <string name="clipboard_empty_message">Please copy a video URL to your clipboard first, then try again.</string>
+    <string name="ok">OK</string>
+    <string name="starting_download">Starting download...</string>
+    <string name="download_completed">Download completed successfully!</string>
+    <string name="download_failed">Download failed</string>
+</resources>

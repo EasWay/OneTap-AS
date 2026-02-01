@@ -1,0 +1,218 @@
+[
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-hdpi_ic_launcher_round.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-hdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/xml_data_extraction_rules.xml.flat",
+        "source": "com.example.onetap.app-main-50:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_info_i.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_info_i.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xhdpi/ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/xml_file_paths.xml.flat",
+        "source": "com.example.onetap.app-main-50:/xml/file_paths.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xhdpi_ic_launcher_round.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-mdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-mdpi/ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xhdpi_ic_launcher_background.png.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xhdpi/ic_launcher_background.png"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_close_background.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/close_background.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/anim_sonner_icon_pulse.xml.flat",
+        "source": "com.example.onetap.app-main-50:/anim/sonner_icon_pulse.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/anim_trash_open_close.xml.flat",
+        "source": "com.example.onetap.app-main-50:/anim/trash_open_close.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/anim_sonner_slide_out.xml.flat",
+        "source": "com.example.onetap.app-main-50:/anim/sonner_slide_out.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_bg_sonner.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/bg_sonner.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_download.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_download.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_onetap.png.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/onetap.png"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xhdpi_ic_launcher.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/anim_trash_lid_close.xml.flat",
+        "source": "com.example.onetap.app-main-50:/anim/trash_lid_close.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_trash.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_trash.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/anim_trash_shake.xml.flat",
+        "source": "com.example.onetap.app-main-50:/anim/trash_shake.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/layout_close_layout.xml.flat",
+        "source": "com.example.onetap.app-main-50:/layout/close_layout.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_close.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_close.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-mdpi_ic_launcher.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-mdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/xml_backup_rules.xml.flat",
+        "source": "com.example.onetap.app-main-50:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_bubble_background.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/bubble_background.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-mdpi_ic_launcher_background.png.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-mdpi/ic_launcher_background.png"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/layout_layout_sonner_toast.xml.flat",
+        "source": "com.example.onetap.app-main-50:/layout/layout_sonner_toast.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_trash_background.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/trash_background.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xxxhdpi_ic_launcher_background.png.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xxxhdpi/ic_launcher_background.png"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/anim_bubble_disappear.xml.flat",
+        "source": "com.example.onetap.app-main-50:/anim/bubble_disappear.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xxhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xxhdpi/ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/anim_trash_lid_open.xml.flat",
+        "source": "com.example.onetap.app-main-50:/anim/trash_lid_open.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/anim_spinner_rotate.xml.flat",
+        "source": "com.example.onetap.app-main-50:/anim/spinner_rotate.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-hdpi_ic_launcher.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-hdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xxhdpi_ic_launcher.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xxhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/layout_bubble_layout.xml.flat",
+        "source": "com.example.onetap.app-main-50:/layout/bubble_layout.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_trash_body.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_trash_body.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_error_x.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_error_x.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-mdpi_ic_launcher_round.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-mdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_trash_lid.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_trash_lid.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xxxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_success_check.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_success_check.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_spinner.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_spinner.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-hdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-hdpi/ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/anim_sonner_slide_in.xml.flat",
+        "source": "com.example.onetap.app-main-50:/anim/sonner_slide_in.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xxxhdpi_ic_launcher.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xxxhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xxxhdpi_ic_launcher_foreground.webp.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xxxhdpi/ic_launcher_foreground.webp"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-xxhdpi_ic_launcher_background.png.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-xxhdpi/ic_launcher_background.png"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/anim_trash_pulse.xml.flat",
+        "source": "com.example.onetap.app-main-50:/anim/trash_pulse.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/drawable_ic_warning.xml.flat",
+        "source": "com.example.onetap.app-main-50:/drawable/ic_warning.xml"
+    },
+    {
+        "merged": "com.example.onetap.app-debug-48:/mipmap-hdpi_ic_launcher_background.png.flat",
+        "source": "com.example.onetap.app-main-50:/mipmap-hdpi/ic_launcher_background.png"
+    }
+]
