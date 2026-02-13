@@ -7,11 +7,17 @@ import android.provider.MediaStore
 import android.util.Log
 import com.example.onetap.api.DownloadRequest
 import com.example.onetap.api.DownloadResponse
+import com.example.onetap.download.AdvancedDownloadManager
+import com.example.onetap.download.BatchDownloadRequest
+import com.example.onetap.download.BatchDownloadResult
+import com.example.onetap.download.DownloadProgress
 import com.example.onetap.network.ApiClient
 import com.example.onetap.network.ErrorMapper
 import com.example.onetap.utils.DownloadHistoryManager
 import com.example.onetap.utils.DownloadInfo
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -22,12 +28,16 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
+import java.util.UUID
 
 // Custom exception for unsupported content types
 class UnsupportedContentException(message: String) : Exception(message)
 
 class VideoRepository {
     private val tag = "OneTap_VideoRepo"
+    
+    // Ultra-fast download manager instance
+    private var advancedDownloadManager: AdvancedDownloadManager? = null
     
     // Configure a client with longer timeouts for video file downloads
     private val downloadClient = OkHttpClient.Builder()
@@ -38,12 +48,223 @@ class VideoRepository {
         .retryOnConnectionFailure(true)          // Enable retry for connection failures
         .build()
 
+    /**
+     * Initialize the advanced download manager
+     */
+    private fun initAdvancedDownloadManager(context: Context) {
+        if (advancedDownloadManager == null) {
+            advancedDownloadManager = AdvancedDownloadManager(context)
+            Log.i(tag, "🚀 Advanced Download Manager initialized")
+        }
+    }
+
+    /**
+     * Ultra-fast batch download for multiple YouTube videos
+     */
+    suspend fun downloadMultipleVideos(
+        context: Context, 
+        videoUrls: List<String>,
+        progressCallback: ((String, DownloadProgress) -> Unit)? = null
+    ): Flow<BatchDownloadResult> = flow {
+        initAdvancedDownloadManager(context)
+        
+        Log.i(tag, "🎯 Starting ultra-fast batch download of ${videoUrls.size} videos")
+        
+        // Process URLs and get download info from server
+        val batchRequests = mutableListOf<BatchDownloadRequest>()
+        
+        for ((index, videoUrl) in videoUrls.withIndex()) {
+            try {
+                Log.d(tag, "📋 Processing URL ${index + 1}/${videoUrls.size}: $videoUrl")
+                
+                // Get download info from server
+                val response = getServerProcessedResponse(videoUrl, 2)
+                val platform = detectPlatform(videoUrl)
+                
+                // Generate appropriate filename based on platform and response
+                val filename = if (isMusicPlatform(platform)) {
+                    generateMusicFilename(response.title, response.filename, platform)
+                } else {
+                    response.filename ?: "video_${index + 1}.mp4"
+                }
+                val downloadId = UUID.randomUUID().toString()
+                
+                // Check for duplicates
+                val downloadHistoryManager = DownloadHistoryManager(context)
+                if (!downloadHistoryManager.isAlreadyDownloadedByFilename(filename)) {
+                    // Construct download URL
+                    val downloadUrl = if (response.downloadUrl?.startsWith("http") == true) {
+                        response.downloadUrl // Direct URL
+                    } else {
+                        "${ApiClient.BASE_URL.trimEnd('/')}${response.downloadUrl}"
+                    }
+                    
+                    batchRequests.add(BatchDownloadRequest(downloadId, downloadUrl, filename))
+                    Log.i(tag, "✅ Queued: $filename")
+                } else {
+                    Log.i(tag, "⏭️ Skipped duplicate: $filename")
+                    emit(BatchDownloadResult.Success(UUID.randomUUID().toString(), filename, "Already downloaded"))
+                }
+                
+            } catch (e: Exception) {
+                Log.e(tag, "❌ Failed to process URL ${index + 1}: ${e.message}")
+                emit(BatchDownloadResult.Error(UUID.randomUUID().toString(), "video_${index + 1}", e.message ?: "Processing failed"))
+            }
+        }
+        
+        if (batchRequests.isNotEmpty()) {
+            Log.i(tag, "🚀 Starting concurrent download of ${batchRequests.size} videos")
+            
+            // Use advanced download manager for ultra-fast concurrent downloads
+            advancedDownloadManager?.queueBatchDownloads(batchRequests)?.collect { result ->
+                when (result) {
+                    is BatchDownloadResult.Success -> {
+                        // Save to gallery and mark as downloaded
+                        try {
+                            saveToGallery(context, result.filePath, false)
+                            
+                            // Mark as downloaded in history
+                            val downloadHistoryManager = DownloadHistoryManager(context)
+                            downloadHistoryManager.markAsDownloadedByFilename(result.filename, "batch_download")
+                            
+                            Log.i(tag, "✅ Completed: ${result.filename}")
+                        } catch (e: Exception) {
+                            Log.e(tag, "❌ Failed to save ${result.filename}: ${e.message}")
+                        }
+                    }
+                    is BatchDownloadResult.Error -> {
+                        Log.e(tag, "❌ Download failed: ${result.filename} - ${result.error}")
+                    }
+                }
+                emit(result)
+            }
+        }
+    }
+
+    /**
+     * Enhanced single video download with progress tracking
+     */
+    suspend fun downloadVideoWithProgress(
+        context: Context, 
+        videoUrl: String,
+        progressCallback: ((DownloadProgress) -> Unit)? = null
+    ): Flow<DownloadProgress> = flow {
+        initAdvancedDownloadManager(context)
+        
+        try {
+            Log.i(tag, "🎯 Starting enhanced download with progress tracking")
+            
+            // Get download info from server
+            val response = getServerProcessedResponse(videoUrl, 2)
+            val platform = detectPlatform(videoUrl)
+            
+            // Generate appropriate filename based on platform and response
+            val filename = if (isMusicPlatform(platform)) {
+                generateMusicFilename(response.title, response.filename, platform)
+            } else {
+                response.filename ?: "video.mp4"
+            }
+            
+            Log.i(tag, "🎵 Platform: $platform, Generated filename: $filename")
+            
+            // Check for duplicates
+            val downloadHistoryManager = DownloadHistoryManager(context)
+            if (downloadHistoryManager.isAlreadyDownloadedByFilename(filename)) {
+                val downloadInfo = downloadHistoryManager.getDownloadInfoByFilename(filename)
+                val timeSince = downloadInfo?.let { downloadHistoryManager.getTimeSinceDownload(it.downloadedAt) } ?: "recently"
+                emit(DownloadProgress.Error(UUID.randomUUID().toString(), filename, "Already downloaded $timeSince"))
+                return@flow
+            }
+            
+            // Construct download URL based on platform
+            val downloadUrl = if (response.downloadUrl?.startsWith("http") == true) {
+                // Direct URL (YouTube) - use as-is for ultra-fast download
+                Log.i(tag, "📱 Direct YouTube URL detected - using AdvancedDownloadManager")
+                response.downloadUrl
+            } else {
+                // Server relative URL (other platforms) - prepend base URL
+                "${ApiClient.BASE_URL.trimEnd('/')}${response.downloadUrl}"
+            }
+            
+            // For YouTube direct URLs, use AdvancedDownloadManager for better performance
+            if (response.downloadUrl?.startsWith("http") == true && detectPlatform(videoUrl) == "youtube") {
+                val result = handleYouTubeDirectDownload(context, downloadUrl, filename, videoUrl)
+                emit(DownloadProgress.Completed(UUID.randomUUID().toString(), filename, "", 0L))
+                return@flow
+            }
+            
+            Log.i(tag, "📱 Using ultra-fast download for: $filename")
+            
+            // Use advanced download manager
+            advancedDownloadManager?.downloadWithProgress(downloadUrl, filename)?.collect { progress ->
+                progressCallback?.invoke(progress)
+                
+                when (progress) {
+                    is DownloadProgress.Started -> {
+                        Log.i(tag, "🎯 Started download: ${progress.filename}")
+                    }
+                    is DownloadProgress.Completed -> {
+                        // Save to gallery - detect file type
+                        val platform = detectPlatform(videoUrl)
+                        val isImage = filename.lowercase().let { name ->
+                            name.endsWith(".jpg") || name.endsWith(".jpeg") || 
+                            name.endsWith(".png") || name.endsWith(".webp") || 
+                            name.endsWith(".gif")
+                        }
+                        val isAudio = isMusicPlatform(platform) || filename.lowercase().let { name ->
+                            name.endsWith(".mp3") || name.endsWith(".m4a") || 
+                            name.endsWith(".wav") || name.endsWith(".flac") || 
+                            name.endsWith(".aac")
+                        }
+                        
+                        try {
+                            saveToGallery(context, progress.filePath, isImage, isAudio)
+                            downloadHistoryManager.markAsDownloadedByFilename(filename, videoUrl)
+                            
+                            val mediaType = when {
+                                isImage -> "image"
+                                isAudio -> "music"
+                                else -> "video"
+                            }
+                            Log.i(tag, "✅ Enhanced $mediaType download completed: $filename")
+                        } catch (e: Exception) {
+                            Log.e(tag, "❌ Failed to save to gallery: ${e.message}")
+                            emit(DownloadProgress.Error(progress.id, filename, "Failed to save: ${e.message}"))
+                            return@collect
+                        }
+                    }
+                    is DownloadProgress.Error -> {
+                        Log.e(tag, "❌ Enhanced download failed: ${progress.error}")
+                    }
+                    is DownloadProgress.Progress -> {
+                        val speedMBps = progress.speed / 1024 / 1024
+                        Log.d(tag, "📊 Progress: ${progress.percentage.toInt()}% (${speedMBps}MB/s)")
+                    }
+                }
+                emit(progress)
+            }
+            
+        } catch (e: Exception) {
+            Log.e(tag, "❌ Enhanced download failed: ${e.message}")
+            emit(DownloadProgress.Error(UUID.randomUUID().toString(), "video", e.message ?: "Download failed"))
+        }
+    }
+
     suspend fun downloadVideo(context: Context, videoUrl: String, retryCount: Int = 2): String {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d(tag, "Processing URL: $videoUrl")
                 
-                // Use server-side processing for all URLs
+                // Check if this is a batch download request (multiple URLs)
+                if (videoUrl.contains("|")) {
+                    val urls = videoUrl.split("|").filter { it.isNotBlank() }
+                    if (urls.size > 1) {
+                        Log.i(tag, "🎯 Detected batch download request: ${urls.size} URLs")
+                        return@withContext "BATCH_DOWNLOAD_INITIATED"
+                    }
+                }
+                
+                // Use server-side processing for single URL
                 Log.i(tag, "☁️ Using server-side processing")
                 return@withContext handleServerSideDownload(context, videoUrl, retryCount)
                 
@@ -58,6 +279,184 @@ class VideoRepository {
         }
     }
     
+    /**
+     * Detect platform from URL
+     */
+    private fun detectPlatform(url: String): String {
+        return when {
+            url.contains("youtube.com") || url.contains("youtu.be") -> "youtube"
+            url.contains("tiktok.com") -> "tiktok"
+            url.contains("instagram.com") -> "instagram"
+            url.contains("facebook.com") -> "facebook"
+            url.contains("twitter.com") || url.contains("x.com") -> "twitter"
+            url.contains("soundcloud.com") -> "soundcloud"
+            url.contains("deezer.com") -> "deezer"
+            url.contains("spotify.com") -> "spotify"
+            else -> "other"
+        }
+    }
+
+    /**
+     * Check if platform is a music/audio platform
+     */
+    private fun isMusicPlatform(platform: String): Boolean {
+        return platform in listOf("soundcloud", "deezer", "spotify")
+    }
+
+    /**
+     * Generate appropriate filename for music downloads
+     */
+    private fun generateMusicFilename(title: String?, originalFilename: String?, platform: String): String {
+        // Use title if available, otherwise fall back to original filename
+        val baseName = when {
+            !title.isNullOrBlank() -> {
+                // Clean the title for use as filename
+                title.replace(Regex("[^a-zA-Z0-9\\s\\-_.]"), "")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+            }
+            !originalFilename.isNullOrBlank() -> originalFilename
+            else -> "audio_${System.currentTimeMillis()}"
+        }
+        
+        // Ensure proper audio file extension
+        return when {
+            baseName.endsWith(".mp3", ignoreCase = true) -> baseName
+            baseName.endsWith(".m4a", ignoreCase = true) -> baseName
+            baseName.endsWith(".wav", ignoreCase = true) -> baseName
+            baseName.endsWith(".flac", ignoreCase = true) -> baseName
+            else -> "$baseName.mp3" // Default to mp3 for music platforms
+        }
+    }
+
+    /**
+     * Handle YouTube direct downloads using AdvancedDownloadManager for ultra-fast performance
+     */
+    private suspend fun handleYouTubeDirectDownload(
+        context: Context, 
+        directUrl: String, 
+        filename: String, 
+        originalUrl: String
+    ): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.i(tag, "🚀 YouTube Direct Download Mode - Ultra Fast")
+                Log.d(tag, "📱 Using AdvancedDownloadManager for: $filename")
+                
+                initAdvancedDownloadManager(context)
+                val downloadHistoryManager = DownloadHistoryManager(context)
+                
+                // Use AdvancedDownloadManager for chunked, high-speed download
+                var finalResult = "Download failed"
+                
+                advancedDownloadManager?.downloadWithProgress(directUrl, filename)?.collect { progress ->
+                    when (progress) {
+                        is DownloadProgress.Started -> {
+                            Log.i(tag, "🎯 Started ultra-fast download: ${progress.filename}")
+                        }
+                        is DownloadProgress.Progress -> {
+                            val speedMBps = progress.speed / 1024 / 1024
+                            val progressPercent = progress.percentage.toInt()
+                            Log.d(tag, "📊 Progress: $progressPercent% (${speedMBps}MB/s)")
+                        }
+                        is DownloadProgress.Completed -> {
+                            Log.i(tag, "✅ Ultra-fast download completed: ${progress.filename}")
+                            
+                            // Save to gallery
+                            val platform = detectPlatform(originalUrl)
+                            val isImage = filename.lowercase().let { name ->
+                                name.endsWith(".jpg") || name.endsWith(".jpeg") || 
+                                name.endsWith(".png") || name.endsWith(".webp") || 
+                                name.endsWith(".gif")
+                            }
+                            val isAudio = isMusicPlatform(platform) || filename.lowercase().let { name ->
+                                name.endsWith(".mp3") || name.endsWith(".m4a") || 
+                                name.endsWith(".wav") || name.endsWith(".flac") || 
+                                name.endsWith(".aac")
+                            }
+                            
+                            try {
+                                saveToGallery(context, progress.filePath, isImage, isAudio)
+                                downloadHistoryManager.markAsDownloadedByFilename(filename, originalUrl)
+                                
+                                val fileSizeMB = progress.fileSize / 1024 / 1024
+                                val mediaType = when {
+                                    isImage -> "image"
+                                    isAudio -> "music"
+                                    else -> "video"
+                                }
+                                finalResult = "✅ Success: Downloaded $mediaType $filename (${fileSizeMB}MB) using ultra-fast mode"
+                                
+                            } catch (e: Exception) {
+                                Log.e(tag, "❌ Failed to save to gallery: ${e.message}")
+                                finalResult = "❌ Download completed but failed to save: ${e.message}"
+                            }
+                        }
+                        is DownloadProgress.Error -> {
+                            Log.e(tag, "❌ Ultra-fast download failed: ${progress.error}")
+                            finalResult = "❌ Ultra-fast download failed: ${progress.error}"
+                        }
+                    }
+                }
+                
+                return@withContext finalResult
+                
+            } catch (e: Exception) {
+                Log.e(tag, "❌ YouTube direct download failed: ${e.message}")
+                return@withContext "❌ YouTube direct download failed: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Save file to gallery
+     */
+    private fun saveToGallery(context: Context, filePath: String, isImage: Boolean, isAudio: Boolean = false) {
+        val file = java.io.File(filePath)
+        if (!file.exists()) {
+            throw Exception("File does not exist: $filePath")
+        }
+        
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
+            when {
+                isImage -> put(MediaStore.MediaColumns.MIME_TYPE, "image/*")
+                isAudio -> put(MediaStore.MediaColumns.MIME_TYPE, "audio/*")
+                else -> put(MediaStore.MediaColumns.MIME_TYPE, "video/*")
+            }
+            when {
+                isImage -> put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+                isAudio -> put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_MUSIC)
+                else -> put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_MOVIES)
+            }
+        }
+        
+        val uri = context.contentResolver.insert(
+            when {
+                isImage -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                isAudio -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                else -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            },
+            contentValues
+        ) ?: throw Exception("Failed to create media store entry")
+        
+        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+            file.inputStream().use { inputStream ->
+                inputStream.copyTo(outputStream)
+            }
+        } ?: throw Exception("Failed to open output stream")
+        
+        // Delete temporary file
+        file.delete()
+        
+        val mediaType = when {
+            isImage -> "image"
+            isAudio -> "music"
+            else -> "video"
+        }
+        Log.i(tag, "✅ Saved $mediaType to gallery: ${file.name}")
+    }
+
     /**
      * Handle non-YouTube downloads using server-side processing
      */
@@ -77,8 +476,13 @@ class VideoRepository {
             return handleMultipleDownloads(context, response, videoUrl)
         }
         
-        // Single file download - use existing logic
-        val filename = response.filename ?: throw kotlin.Exception("No filename returned from server")
+        // Single file download - use existing logic with proper filename handling
+        val platform = detectPlatform(videoUrl)
+        val filename = if (isMusicPlatform(platform)) {
+            generateMusicFilename(response.title, response.filename, platform)
+        } else {
+            response.filename ?: throw kotlin.Exception("No filename returned from server")
+        }
         
         // Check for duplicates using existing logic
         val downloadHistoryManager = DownloadHistoryManager(context)
@@ -110,28 +514,41 @@ class VideoRepository {
             return "DUPLICATE_DETECTED:$timeSince"
         }
 
-        // Use the download URL from server response (could be /files/ or /stream/)
+        // Use the download URL from server response
         val serverFileUrl = if (!response.downloadUrl.isNullOrEmpty()) {
-            // Server provided a download URL (e.g., /stream/xyz), prepend base URL
-            "${ApiClient.BASE_URL.trimEnd('/')}${response.downloadUrl}"
+            if (response.downloadUrl.startsWith("http")) {
+                // Direct URL (e.g., YouTube direct link) - use as-is
+                response.downloadUrl
+            } else {
+                // Server relative URL (e.g., /stream/xyz) - prepend base URL
+                "${ApiClient.BASE_URL.trimEnd('/')}${response.downloadUrl}"
+            }
         } else {
             // Fallback to old /files/ endpoint for backward compatibility
             "${ApiClient.BASE_URL}files/$filename"
         }
         
-        Log.d(tag, "Using server download URL: $serverFileUrl")
-        Log.d(tag, "🌐 Server host: ${java.net.URL(serverFileUrl).host}")
-        Log.d(tag, "🔌 Server port: ${java.net.URL(serverFileUrl).port}")
-        Log.d(tag, "📡 Server path: ${java.net.URL(serverFileUrl).path}")
+        Log.d(tag, "Using download URL: $serverFileUrl")
+        Log.d(tag, "🌐 Host: ${java.net.URL(serverFileUrl).host}")
+        Log.d(tag, "📡 Path: ${java.net.URL(serverFileUrl).path}")
         
-        // Detect file type based on filename extension
+        // Check if this is a direct URL (YouTube) or server proxy
+        val isDirect = response.downloadUrl?.startsWith("http") == true
+        Log.i(tag, if (isDirect) "📱 Direct download from source" else "🌊 Download via server proxy")
+        
+        // Detect file type based on filename extension and platform
         val isImage = filename.lowercase().let { name ->
             name.endsWith(".jpg") || name.endsWith(".jpeg") || 
             name.endsWith(".png") || name.endsWith(".webp") || 
             name.endsWith(".gif")
         }
+        val isAudio = isMusicPlatform(platform) || filename.lowercase().let { name ->
+            name.endsWith(".mp3") || name.endsWith(".m4a") || 
+            name.endsWith(".wav") || name.endsWith(".flac") || 
+            name.endsWith(".aac")
+        }
         
-        val result = downloadAndSaveToGallery(context, serverFileUrl, isImage)
+        val result = downloadAndSaveToGallery(context, serverFileUrl, isImage, isAudio)
         
         // If download was successful, mark it as downloaded by filename
         if (result.contains("Success") || result.contains("Saved")) {
@@ -156,9 +573,22 @@ class VideoRepository {
                 Log.d(tag, "Downloading file ${index + 1}/${files.size}: ${file.filename}")
                 Log.d(tag, "File type: ${file.type}, Download URL: ${file.downloadUrl}")
                 
-                // Check for duplicates for each file
-                if (downloadHistoryManager.isAlreadyDownloadedByFilename(file.filename)) {
-                    Log.i(tag, "🔄 File ${file.filename} already downloaded, skipping")
+                // For multi-image posts, create unique filenames using UUID from download URL
+                // This prevents false duplicate detection across different posts
+                val uniqueFilename = if (file.downloadUrl.contains("/stream/")) {
+                    // Extract UUID from stream URL and use it in filename
+                    val uuid = file.downloadUrl.substringAfter("/stream/").substringBefore("_")
+                    val extension = file.filename.substringAfterLast(".", "jpg")
+                    "${uuid}_${file.filename.substringBeforeLast(".")}.${extension}"
+                } else {
+                    file.filename
+                }
+                
+                Log.d(tag, "Unique filename: $uniqueFilename")
+                
+                // Check for duplicates using the unique filename
+                if (downloadHistoryManager.isAlreadyDownloadedByFilename(uniqueFilename)) {
+                    Log.i(tag, "🔄 File ${uniqueFilename} already downloaded, skipping")
                     successCount++
                     continue
                 }
@@ -173,10 +603,11 @@ class VideoRepository {
                 }
                 
                 Log.d(tag, "Constructed server URL: $serverFileUrl")
-                val result = downloadAndSaveToGallery(context, serverFileUrl, isImage = true)
+                val result = downloadAndSaveToGallery(context, serverFileUrl, isImage = true, isAudio = false)
                 
                 if (result.contains("Success") || result.contains("Saved")) {
-                    downloadHistoryManager.markAsDownloadedByFilename(file.filename, videoUrl)
+                    // Mark as downloaded using the unique filename to prevent false duplicates
+                    downloadHistoryManager.markAsDownloadedByFilename(uniqueFilename, videoUrl)
                     successCount++
                     Log.i(tag, "✅ Downloaded ${index + 1}/${files.size}: ${file.filename}")
                 } else {
@@ -403,7 +834,7 @@ class VideoRepository {
         }
     }
 
-    private fun downloadAndSaveToGallery(context: Context, fileUrl: String, isImage: Boolean = false): String {
+    private fun downloadAndSaveToGallery(context: Context, fileUrl: String, isImage: Boolean = false, isAudio: Boolean = false): String {
         val request = Request.Builder()
             .url(fileUrl)
             .header("User-Agent", "OneTap-VideoDownloader/1.0")
@@ -677,5 +1108,14 @@ class VideoRepository {
                 return@withContext null
             }
         }
+    }
+
+    /**
+     * Cleanup resources
+     */
+    fun cleanup() {
+        advancedDownloadManager?.cleanup()
+        advancedDownloadManager = null
+        Log.i(tag, "🧹 VideoRepository cleanup completed")
     }
 }

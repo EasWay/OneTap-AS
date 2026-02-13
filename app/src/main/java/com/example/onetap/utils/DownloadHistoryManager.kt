@@ -36,14 +36,24 @@ class DownloadHistoryManager(context: Context) {
         if (filename.contains("_image_")) {
             // This is likely a multi-image post, check exact filename
             return prefs.all.keys.any { key ->
-                key.startsWith("filename_") && prefs.getString(key, "") == filename
+                key.startsWith("filename_") && try {
+                    prefs.getString(key, "") == filename
+                } catch (e: ClassCastException) {
+                    // Skip keys that aren't strings
+                    false
+                }
             }
         }
         
         // For regular files, check by filename prefix (first 20 characters)
         val prefix = filename.take(20)
         return prefs.all.keys.any { key ->
-            key.startsWith("filename_") && prefs.getString(key, "")?.startsWith(prefix) == true
+            key.startsWith("filename_") && try {
+                prefs.getString(key, "")?.startsWith(prefix) == true
+            } catch (e: ClassCastException) {
+                // Skip keys that aren't strings
+                false
+            }
         }
     }
     
@@ -51,13 +61,25 @@ class DownloadHistoryManager(context: Context) {
         // For multi-image posts, check the exact filename
         if (filename.contains("_image_")) {
             val matchingKey = prefs.all.keys.find { key ->
-                key.startsWith("filename_") && prefs.getString(key, "") == filename
+                key.startsWith("filename_") && try {
+                    prefs.getString(key, "") == filename
+                } catch (e: ClassCastException) {
+                    false
+                }
             }
             
             return matchingKey?.let { key ->
                 val timestamp = key.removePrefix("filename_").toLongOrNull() ?: return null
-                val storedFilename = prefs.getString(key, "") ?: return null
-                val url = prefs.getString("url_$timestamp", "") ?: ""
+                val storedFilename = try {
+                    prefs.getString(key, "") ?: return null
+                } catch (e: ClassCastException) {
+                    return null
+                }
+                val url = try {
+                    prefs.getString("url_$timestamp", "") ?: ""
+                } catch (e: ClassCastException) {
+                    ""
+                }
                 DownloadInfo(storedFilename, timestamp, url)
             }
         }
@@ -65,13 +87,25 @@ class DownloadHistoryManager(context: Context) {
         // For regular files, check by prefix
         val prefix = filename.take(20)
         val matchingKey = prefs.all.keys.find { key ->
-            key.startsWith("filename_") && prefs.getString(key, "")?.startsWith(prefix) == true
+            key.startsWith("filename_") && try {
+                prefs.getString(key, "")?.startsWith(prefix) == true
+            } catch (e: ClassCastException) {
+                false
+            }
         }
         
         return matchingKey?.let { key ->
             val timestamp = key.removePrefix("filename_").toLongOrNull() ?: return null
-            val storedFilename = prefs.getString(key, "") ?: return null
-            val url = prefs.getString("url_$timestamp", "") ?: ""
+            val storedFilename = try {
+                prefs.getString(key, "") ?: return null
+            } catch (e: ClassCastException) {
+                return null
+            }
+            val url = try {
+                prefs.getString("url_$timestamp", "") ?: ""
+            } catch (e: ClassCastException) {
+                ""
+            }
             DownloadInfo(storedFilename, timestamp, url)
         }
     }
