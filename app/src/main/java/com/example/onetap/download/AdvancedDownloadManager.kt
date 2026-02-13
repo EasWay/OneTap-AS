@@ -103,14 +103,17 @@ class AdvancedDownloadManager(private val context: Context) {
         downloadSemaphore.acquire()
         
         try {
-            Log.i(TAG, "🎯 Starting ultra-fast download: $filename")
+            // Sanitize filename to prevent file system errors
+            val sanitizedFilename = sanitizeFilename(filename)
             
-            val outputFile = File(context.getExternalFilesDir(null), filename)
-            val stats = DownloadStats(downloadId, filename, System.currentTimeMillis())
+            Log.i(TAG, "🎯 Starting ultra-fast download: $sanitizedFilename")
+            
+            val outputFile = File(context.getExternalFilesDir(null), sanitizedFilename)
+            val stats = DownloadStats(downloadId, sanitizedFilename, System.currentTimeMillis())
             downloadStats[downloadId] = stats
             
             // Emit initial progress
-            emit(DownloadProgress.Started(downloadId, filename))
+            emit(DownloadProgress.Started(downloadId, sanitizedFilename))
             
             // Check if server supports range requests for chunked downloading
             val supportsRanges = checkRangeSupport(url)
@@ -134,6 +137,34 @@ class AdvancedDownloadManager(private val context: Context) {
             downloadSemaphore.release()
             downloadStats.remove(downloadId)
         }
+    }
+    
+    /**
+     * Sanitize filename to prevent file system errors
+     * - Limit length to 200 characters (safe limit for most file systems)
+     * - Remove invalid characters
+     * - Preserve file extension
+     */
+    private fun sanitizeFilename(filename: String): String {
+        // Extract extension
+        val lastDot = filename.lastIndexOf('.')
+        val name = if (lastDot > 0) filename.substring(0, lastDot) else filename
+        val ext = if (lastDot > 0) filename.substring(lastDot) else ""
+        
+        // Remove invalid characters
+        val cleanName = name.replace(Regex("[^a-zA-Z0-9\\s\\-_.]"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        
+        // Limit length (200 chars for name + extension)
+        val maxNameLength = 200 - ext.length
+        val truncatedName = if (cleanName.length > maxNameLength) {
+            cleanName.substring(0, maxNameLength).trim()
+        } else {
+            cleanName
+        }
+        
+        return "$truncatedName$ext"
     }
     
     /**
@@ -274,13 +305,17 @@ class AdvancedDownloadManager(private val context: Context) {
         val contentLength = body.contentLength()
         stats.totalBytes = contentLength
         
-        Log.i(TAG, "📡 Single-stream download: ${contentLength / 1024 / 1024}MB")
+        Log.i(TAG, "📡 Single-stream download: ${contentLength / 1024 / 1024}MB (contentLength: $contentLength)")
+        
+        // Emit initial progress
+        emit(DownloadProgress.Progress(downloadId, outputFile.name, 0L, contentLength, 0f, 0L))
         
         FileOutputStream(outputFile).use { output ->
             body.byteStream().use { input ->
                 val buffer = ByteArray(8192) // 8KB buffer
                 var totalBytesRead = 0L
                 var lastProgressTime = System.currentTimeMillis()
+                var lastProgressBytes = 0L
                 
                 while (true) {
                     val bytesRead = input.read(buffer)
@@ -294,12 +329,28 @@ class AdvancedDownloadManager(private val context: Context) {
                     if (currentTime - lastProgressTime >= 100) {
                         val progress = if (contentLength > 0) {
                             (totalBytesRead.toFloat() / contentLength * 100).coerceIn(0f, 100f)
-                        } else 0f
+                        } else {
+                            // If content length unknown, show bytes downloaded
+                            0f
+                        }
                         
-                        val speed = calculateSpeed(stats, totalBytesRead)
+                        // Calculate speed based on bytes since last update
+                        val timeDiff = currentTime - lastProgressTime
+                        val bytesDiff = totalBytesRead - lastProgressBytes
+                        val speed = if (timeDiff > 0) (bytesDiff * 1000) / timeDiff else 0L
+                        
+                        Log.d(TAG, "📊 Progress: ${progress.toInt()}% ($totalBytesRead/$contentLength bytes, ${speed / 1024}KB/s)")
+                        
                         emit(DownloadProgress.Progress(downloadId, outputFile.name, totalBytesRead, contentLength, progress, speed))
+                        
                         lastProgressTime = currentTime
+                        lastProgressBytes = totalBytesRead
                     }
+                }
+                
+                // Emit final progress at 100%
+                if (contentLength > 0) {
+                    emit(DownloadProgress.Progress(downloadId, outputFile.name, totalBytesRead, contentLength, 100f, 0L))
                 }
             }
         }

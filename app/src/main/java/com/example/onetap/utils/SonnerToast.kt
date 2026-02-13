@@ -24,7 +24,7 @@ object SonnerToast {
         LOADING, SUCCESS, ERROR, WARNING, INFO
     }
     
-    fun show(context: Context, message: String, type: Type) {
+    fun show(context: Context, message: String, type: Type, progress: Int? = null) {
         handler.post {
             try {
                 removeView()
@@ -42,8 +42,17 @@ object SonnerToast {
                 val warningIcon = view.findViewById<ImageView>(R.id.warningIcon)
                 val infoIcon = view.findViewById<ImageView>(R.id.infoIcon)
                 val text = view.findViewById<TextView>(R.id.messageText)
+                val progressText = view.findViewById<TextView>(R.id.progressText)
                 
                 text.text = message
+                
+                // Show/hide progress percentage
+                if (progress != null && type == Type.LOADING) {
+                    progressText.visibility = View.VISIBLE
+                    progressText.text = "$progress%"
+                } else {
+                    progressText.visibility = View.GONE
+                }
                 
                 // Hide all icons first
                 spinner.visibility = View.GONE
@@ -112,6 +121,56 @@ object SonnerToast {
         handler.post { removeView() }
     }
     
+    /**
+     * Update progress percentage on existing toast
+     */
+    fun updateProgress(progress: Int) {
+        handler.post {
+            try {
+                currentView?.let { view ->
+                    val progressText = view.findViewById<TextView>(R.id.progressText)
+                    progressText?.visibility = View.VISIBLE
+                    progressText?.text = "$progress%"
+                }
+            } catch (e: Exception) {
+                // Ignore if view is not available
+            }
+        }
+    }
+    
+    /**
+     * Update progress with custom text (for MB display when size unknown)
+     */
+    fun updateProgressText(text: String) {
+        handler.post {
+            try {
+                currentView?.let { view ->
+                    val progressText = view.findViewById<TextView>(R.id.progressText)
+                    progressText?.visibility = View.VISIBLE
+                    progressText?.text = text
+                }
+            } catch (e: Exception) {
+                // Ignore if view is not available
+            }
+        }
+    }
+    
+    /**
+     * Update message on existing toast (for multi-file downloads)
+     */
+    fun updateMessage(message: String) {
+        handler.post {
+            try {
+                currentView?.let { view ->
+                    val messageText = view.findViewById<TextView>(R.id.messageText)
+                    messageText?.text = message
+                }
+            } catch (e: Exception) {
+                // Ignore if view is not available
+            }
+        }
+    }
+    
     private fun removeView() {
         try {
             currentView?.let {
@@ -129,73 +188,73 @@ object SonnerToast {
     
     // === DOWNLOAD EVENTS ===
     fun showDownloadStarted(context: Context, platform: String = "") {
-        val message = if (platform.isNotEmpty()) "Downloading from $platform..." else "Downloading..."
+        val message = if (platform.isNotEmpty()) "$platform..." else "Downloading..."
         show(context, message, Type.LOADING)
     }
     
     fun showDownloadSuccess(context: Context, platform: String = "") {
-        val message = if (platform.isNotEmpty()) "Downloaded from $platform" else "Downloaded"
+        val message = if (platform.isNotEmpty()) "✅ $platform" else "✅ Done"
         show(context, message, Type.SUCCESS)
     }
     
     fun showDownloadFailed(context: Context, reason: String = "") {
-        val message = if (reason.isNotEmpty()) "Download failed: $reason" else "Download failed"
+        val message = if (reason.isNotEmpty()) "❌ $reason" else "❌ Failed"
         show(context, message, Type.ERROR)
     }
     
     // === SPECIFIC PLATFORM DOWNLOADS ===
     fun showYouTubeDownload(context: Context) {
-        show(context, "Downloading from YouTube...", Type.LOADING)
+        show(context, "YouTube...", Type.LOADING)
     }
     
     fun showInstagramDownload(context: Context) {
-        show(context, "Downloading from Instagram...", Type.LOADING)
+        show(context, "Instagram...", Type.LOADING)
     }
     
     fun showTikTokDownload(context: Context) {
-        show(context, "Downloading from TikTok...", Type.LOADING)
+        show(context, "TikTok...", Type.LOADING)
     }
     
     fun showTwitterDownload(context: Context) {
-        show(context, "Downloading from Twitter...", Type.LOADING)
+        show(context, "Twitter...", Type.LOADING)
     }
     
     fun showFacebookDownload(context: Context) {
-        show(context, "Downloading from Facebook...", Type.LOADING)
+        show(context, "Facebook...", Type.LOADING)
     }
     
     // === APP EVENTS ===
     fun showUrlCopied(context: Context) {
-        show(context, "URL copied to clipboard", Type.INFO)
+        show(context, "✅ Copied", Type.INFO)
     }
     
     fun showInvalidUrl(context: Context) {
-        show(context, "Invalid URL format", Type.WARNING)
+        show(context, "⚠️ Invalid URL", Type.WARNING)
     }
     
     fun showNetworkError(context: Context) {
-        show(context, "Network connection error", Type.ERROR)
+        show(context, "❌ No connection", Type.ERROR)
     }
     
     fun showServerError(context: Context) {
-        show(context, "Server temporarily unavailable", Type.WARNING)
+        show(context, "⚠️ Server busy", Type.WARNING)
     }
     
     fun showPermissionRequired(context: Context, permission: String) {
-        show(context, "$permission permission required", Type.WARNING)
+        show(context, "⚠️ $permission needed", Type.WARNING)
     }
     
     fun showStorageFull(context: Context) {
-        show(context, "Storage space full", Type.ERROR)
+        show(context, "❌ Storage full", Type.ERROR)
     }
     
     fun showUnsupportedPlatform(context: Context) {
-        show(context, "Platform not supported", Type.WARNING)
+        show(context, "⚠️ Not supported", Type.WARNING)
     }
     
     // === PROCESSING EVENTS ===
     fun showProcessingVideo(context: Context) {
-        show(context, "Processing video...", Type.LOADING)
+        show(context, "Processing...", Type.LOADING)
     }
     
     fun showExtractingAudio(context: Context) {
@@ -203,15 +262,15 @@ object SonnerToast {
     }
     
     fun showConvertingFormat(context: Context) {
-        show(context, "Converting format...", Type.LOADING)
+        show(context, "Converting...", Type.LOADING)
     }
     
     // === LEGACY METHODS (for backward compatibility) ===
     fun showLoading(context: Context) {
-        show(context, "Downloading...", Type.LOADING)
+        show(context, "Loading...", Type.LOADING)
     }
     
     fun showSuccess(context: Context) {
-        show(context, "Downloaded", Type.SUCCESS)
+        show(context, "✅ Done", Type.SUCCESS)
     }
 }

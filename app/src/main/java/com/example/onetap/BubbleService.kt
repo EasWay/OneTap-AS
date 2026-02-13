@@ -21,6 +21,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.example.onetap.repository.VideoRepository
 import com.example.onetap.repository.UnsupportedContentException
+import com.example.onetap.download.DownloadProgress
 import com.example.onetap.utils.SonnerToast
 import kotlinx.coroutines.*
 import kotlin.math.sqrt
@@ -150,63 +151,74 @@ class BubbleService : Service() {
             try {
                 Log.i(TAG, "📥 Starting video download")
                 
-                // Use VideoRepository for all URLs
-                val result = videoRepository.downloadVideo(applicationContext, url, retryCount = 2)
-                
-                withContext(Dispatchers.Main) {
-                    val isSuccess = result.contains("Success") || result.contains("Saved") || 
-                                   result.contains("Downloaded all") || result.contains("⚠️ Downloaded")
-                    val successMessage = if (isSuccess) {
-                        "✅ Download Complete!"
-                    } else {
-                        // Show more specific error messages
-                        when {
-                            result.contains("Network", ignoreCase = true) || 
-                            result.contains("internet", ignoreCase = true) || 
-                            result.contains("connection", ignoreCase = true) -> {
-                                "Check your network connection"
-                            }
-                            result.contains("timeout") || result.contains("Timeout") -> {
-                                "Network timeout - check connection"
-                            }
-                            result.contains("Connection failed") -> {
-                                "Connection failed"
-                            }
-                            result.contains("Server Error") -> {
-                                "Server error - try again"
-                            }
-                            result.contains("Storage", ignoreCase = true) || 
-                            result.contains("space", ignoreCase = true) -> {
-                                "Storage full - free up space"
-                            }
-                            else -> {
-                                "❌ $result"
+                // Use VideoRepository with progress tracking
+                videoRepository.downloadVideoWithProgress(applicationContext, url) { progress ->
+                    // Update progress in toast on main thread (non-suspend)
+                    when (progress) {
+                        is DownloadProgress.Progress -> {
+                            // Use handler to post to main thread instead of withContext
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                if (progress.total > 0) {
+                                    // Content length known - show percentage
+                                    val percentage = progress.percentage.toInt()
+                                    SonnerToast.updateProgress(percentage)
+                                } else {
+                                    // Content length unknown - show MB downloaded
+                                    val mb = progress.downloaded / 1024.0 / 1024.0
+                                    SonnerToast.updateProgressText(String.format("%.1f MB", mb))
+                                }
                             }
                         }
+                        else -> {} // Handle other progress types if needed
                     }
-                    
-                    // Show platform-specific success toast
-                    if (isSuccess) {
-                        showPlatformSpecificSuccessToast(url)
-                        Log.i(TAG, "🎉 Video download completed successfully")
-                    } else {
-                        // For errors, show platform-specific error toast
-                        showPlatformSpecificErrorToast(url, successMessage)
-                        Log.e(TAG, "❌ Video download failed: $successMessage")
+                }.collect { progress ->
+                    when (progress) {
+                        is DownloadProgress.Completed -> {
+                            withContext(Dispatchers.Main) {
+                                Log.i(TAG, "🎉 Video download completed successfully")
+                                SonnerToast.showDownloadSuccess(applicationContext)
+                                updateBubbleAppearance(false)
+                                isDownloading = false
+                            }
+                        }
+                        is DownloadProgress.Error -> {
+                            withContext(Dispatchers.Main) {
+                                Log.e(TAG, "❌ Video download failed: ${progress.error}")
+                                val errorMessage = when {
+                                    progress.error.contains("Network", ignoreCase = true) || 
+                                    progress.error.contains("internet", ignoreCase = true) || 
+                                    progress.error.contains("connection", ignoreCase = true) -> {
+                                        "No connection"
+                                    }
+                                    progress.error.contains("timeout", ignoreCase = true) -> {
+                                        "Timeout"
+                                    }
+                                    progress.error.contains("Storage", ignoreCase = true) || 
+                                    progress.error.contains("space", ignoreCase = true) -> {
+                                        "Storage full"
+                                    }
+                                    progress.error.contains("Already downloaded") -> {
+                                        progress.error // Keep the "Already downloaded X ago" message
+                                    }
+                                    else -> {
+                                        "Failed"
+                                    }
+                                }
+                                SonnerToast.showDownloadFailed(applicationContext, errorMessage)
+                                updateBubbleAppearance(false)
+                                isDownloading = false
+                            }
+                        }
+                        else -> {} // Started and Progress are handled above
                     }
-                    
-                    // Update notification to show completion status
-                    updateNotificationForDownloadComplete(isSuccess)
-                    
-                    isDownloading = false
-                    updateBubbleAppearance(false) // Restore bubble
                 }
+                
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    showPlatformSpecificErrorToast(url, e.message ?: "Unknown error")
-                    Log.e(TAG, "❌ Download failed: ${e.message}")
-                    isDownloading = false
+                    Log.e(TAG, "❌ Download exception: ${e.message}")
+                    SonnerToast.showDownloadFailed(applicationContext, "Failed")
                     updateBubbleAppearance(false)
+                    isDownloading = false
                 }
             }
         }

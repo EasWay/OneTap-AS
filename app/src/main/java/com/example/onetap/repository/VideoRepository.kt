@@ -15,6 +15,7 @@ import com.example.onetap.network.ApiClient
 import com.example.onetap.network.ErrorMapper
 import com.example.onetap.utils.DownloadHistoryManager
 import com.example.onetap.utils.DownloadInfo
+import com.example.onetap.utils.SonnerToast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -157,6 +158,15 @@ class VideoRepository {
             // Get download info from server
             val response = getServerProcessedResponse(videoUrl, 2)
             val platform = detectPlatform(videoUrl)
+            
+            // Check if this is a multi-image download
+            if (response.type == "multi_image" && !response.files.isNullOrEmpty()) {
+                Log.i(tag, "📸 Multi-image response: ${response.files.size} files")
+                val result = handleMultipleDownloads(context, response, videoUrl)
+                // Emit completion for multi-image
+                emit(DownloadProgress.Completed(UUID.randomUUID().toString(), "multi_image", result, 0L))
+                return@flow
+            }
             
             // Generate appropriate filename based on platform and response
             val filename = if (isMusicPlatform(platform)) {
@@ -570,6 +580,11 @@ class VideoRepository {
         
         for ((index, file) in files.withIndex()) {
             try {
+                // Update toast with current progress
+                withContext(Dispatchers.Main) {
+                    SonnerToast.updateMessage("${index + 1}/${files.size}")
+                }
+                
                 Log.d(tag, "Downloading file ${index + 1}/${files.size}: ${file.filename}")
                 Log.d(tag, "File type: ${file.type}, Download URL: ${file.downloadUrl}")
                 
@@ -594,7 +609,7 @@ class VideoRepository {
                 }
                 
                 // Use the download URL from server response (could be relative or absolute)
-                val serverFileUrl = if (file.downloadUrl.startsWith("http")) {
+                val serverFileUrl = if (file.downloadUrl.isNotEmpty() && file.downloadUrl.startsWith("http")) {
                     // Absolute URL
                     file.downloadUrl
                 } else {
@@ -622,9 +637,9 @@ class VideoRepository {
         }
         
         return when {
-            successCount == files.size -> "✅ Downloaded all $successCount images from ${response.platform ?: "photo"} slideshow"
-            successCount > 0 -> "⚠️ Downloaded $successCount of ${files.size} images ($failCount failed)"
-            else -> "❌ Failed to download any images from slideshow"
+            successCount == files.size -> "✅ ${successCount} images"
+            successCount > 0 -> "⚠️ ${successCount}/${files.size} images"
+            else -> "❌ Download failed"
         }
     }
 
