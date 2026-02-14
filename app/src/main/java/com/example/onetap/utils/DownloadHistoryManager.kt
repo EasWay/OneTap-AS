@@ -45,11 +45,24 @@ class DownloadHistoryManager(context: Context) {
             }
         }
         
-        // For regular files, check by filename prefix (first 20 characters)
-        val prefix = filename.take(20)
+        // For generic filenames (like "Tiktok.mp4", "video.mp4"), require exact match
+        val isGenericFilename = filename.lowercase().let { name ->
+            name == "tiktok.mp4" || name == "video.mp4" || name == "instagram.mp4" || 
+            name == "facebook.mp4" || name == "twitter.mp4" || name.startsWith("media_")
+        }
+        
+        if (isGenericFilename) {
+            // Generic filenames must match exactly AND have same URL
+            // This prevents false positives from generic names
+            return false // Don't block generic filenames - they're not unique enough
+        }
+        
+        // For regular files with meaningful names, check by filename prefix (first 30 characters)
+        val prefix = filename.take(30) // Increased from 20 to 30 for better uniqueness
         return prefs.all.keys.any { key ->
             key.startsWith("filename_") && try {
-                prefs.getString(key, "")?.startsWith(prefix) == true
+                val storedFilename = prefs.getString(key, "") ?: ""
+                storedFilename.take(30) == prefix && storedFilename.length > 15 // Avoid very short generic names
             } catch (e: ClassCastException) {
                 // Skip keys that aren't strings
                 false
@@ -84,11 +97,22 @@ class DownloadHistoryManager(context: Context) {
             }
         }
         
+        // For generic filenames, don't return match info to avoid false positives
+        val isGenericFilename = filename.lowercase().let { name ->
+            name == "tiktok.mp4" || name == "video.mp4" || name == "instagram.mp4" || 
+            name == "facebook.mp4" || name == "twitter.mp4" || name.startsWith("media_")
+        }
+        
+        if (isGenericFilename) {
+            return null // Don't return info for generic filenames
+        }
+        
         // For regular files, check by prefix
-        val prefix = filename.take(20)
+        val prefix = filename.take(30)
         val matchingKey = prefs.all.keys.find { key ->
             key.startsWith("filename_") && try {
-                prefs.getString(key, "")?.startsWith(prefix) == true
+                val storedFilename = prefs.getString(key, "") ?: ""
+                storedFilename.take(30) == prefix && storedFilename.length > 15
             } catch (e: ClassCastException) {
                 false
             }
