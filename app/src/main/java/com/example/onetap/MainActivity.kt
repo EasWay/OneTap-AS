@@ -14,6 +14,8 @@ import androidx.annotation.Keep
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.*
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.onetap.ui.theme.OneTapTheme
+import com.example.onetap.gallery.MediaGallerySection
 import com.example.onetap.repository.VideoRepository
 import com.example.onetap.utils.UrlValidator
 import com.example.onetap.utils.DownloadNotificationManager
@@ -103,6 +106,7 @@ fun MinimalScreen() {
     var updateInfo by remember { mutableStateOf<com.example.onetap.utils.UpdateInfo?>(null) }
     var isUpdating by remember { mutableStateOf(false) }
     var updateProgress by remember { mutableStateOf(0) }
+    var galleryRefreshKey by remember { mutableStateOf(0) }
     
     // Check for updates on app start
     LaunchedEffect(Unit) {
@@ -175,50 +179,62 @@ fun MinimalScreen() {
             .then(
                 if (showTutorial || showUpdateDialog) Modifier.blur(10.dp) else Modifier
             )
+            .padding(WindowInsets.systemBars.asPaddingValues())
     ) {
-        // Main tap area
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(enabled = !isDownloading && !showTutorial && !showUpdateDialog) {
-                    scope.launch {
-                        handleTapToDownload(
-                            context = context,
-                            videoRepository = videoRepository,
-                            notificationManager = notificationManager,
-                            onDownloadStart = { 
-                                isDownloading = true
-                                statusMessage = "downloading..."
-                            },
-                            onStatusUpdate = { message -> 
-                                statusMessage = message 
-                            },
-                            onDownloadComplete = { 
-                                isDownloading = false
-                                statusMessage = "tap to download video"
-                            },
-                            onError = { error ->
-                                isDownloading = false
-                                statusMessage = error
-                            }
-                        )
-                    }
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = statusMessage,
-                fontSize = 16.sp,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(16.dp)
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clickable(enabled = !isDownloading && !showTutorial && !showUpdateDialog) {
+                        scope.launch {
+                            handleTapToDownload(
+                                context = context,
+                                videoRepository = videoRepository,
+                                notificationManager = notificationManager,
+                                onDownloadStart = {
+                                    isDownloading = true
+                                    statusMessage = "downloading..."
+                                },
+                                onStatusUpdate = { message ->
+                                    statusMessage = message
+                                },
+                                onDownloadComplete = {
+                                    isDownloading = false
+                                    statusMessage = "tap to download video"
+                                },
+                                onError = { error ->
+                                    isDownloading = false
+                                    statusMessage = error
+                                },
+                                onSuccess = {
+                                    galleryRefreshKey++
+                                }
+                            )
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = statusMessage,
+                    fontSize = 16.sp,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            MediaGallerySection(
+                refreshKey = galleryRefreshKey,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
             )
         }
-        
-        // Credits at the bottom
+
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
+                .align(Alignment.TopEnd)
                 .padding(16.dp)
         ) {
             val annotatedString = buildAnnotatedString {
@@ -243,7 +259,7 @@ fun MinimalScreen() {
                 style = androidx.compose.ui.text.TextStyle(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Thin,
-                    color = Color.White
+                    color = Color.White.copy(alpha = 0.85f)
                 ),
                 onClick = { offset ->
                     annotatedString.getStringAnnotations("URL", offset, offset)
@@ -312,7 +328,8 @@ private suspend fun handleTapToDownload(
     onDownloadStart: () -> Unit,
     onStatusUpdate: (String) -> Unit,
     onDownloadComplete: () -> Unit,
-    onError: (String) -> Unit
+    onError: (String) -> Unit,
+    onSuccess: () -> Unit
 ) {
     try {
         val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -342,6 +359,7 @@ private suspend fun handleTapToDownload(
         if (result.contains("Saved") || result.contains("Success")) {
             onStatusUpdate("complete")
             notificationManager.showDownloadComplete()
+            onSuccess()
             kotlinx.coroutines.delay(1000)
             onDownloadComplete()
         } else {
