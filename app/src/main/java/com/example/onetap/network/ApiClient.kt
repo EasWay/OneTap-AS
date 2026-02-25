@@ -12,6 +12,28 @@ import java.util.concurrent.TimeUnit
 object ApiClient {
     private const val TAG = "OneTap_ApiClient"
     const val BASE_URL = "https://onetap-225t.onrender.com/"
+    const val YOUTUBE_SERVER_URL = "https://youtube-server-2n1t.onrender.com/" // TODO: Update with actual URL
+    
+    /**
+     * Security: Redact sensitive data from URLs before logging
+     */
+    private fun redactUrl(url: String): String {
+        return url.replace(Regex("([?&])(token|key|auth|signature|sig)=[^&]*"), "$1$2=***")
+            .replace(Regex("(access_token|api_key)=([^&]*)"), "$1=***")
+    }
+    
+    /**
+     * Security: Safe logging interceptor that redacts sensitive data
+     */
+    private fun createLoggingInterceptor(): HttpLoggingInterceptor {
+        return HttpLoggingInterceptor { message ->
+            // Redact sensitive information before logging
+            val redacted = redactUrl(message)
+            Log.d(TAG, "HTTP: $redacted")
+        }.apply {
+            level = HttpLoggingInterceptor.Level.BASIC
+        }
+    }
     
     // Optimized HTTP Client Configuration for regular API calls
     private val okHttpClient = OkHttpClient.Builder()
@@ -23,11 +45,7 @@ object ApiClient {
         .apply {
             // Only add logging in debug builds for maximum performance
             if (BuildConfig.ENABLE_LOGGING) {
-                addInterceptor(HttpLoggingInterceptor { message ->
-                    Log.d(TAG, "HTTP: $message")
-                }.apply {
-                    level = HttpLoggingInterceptor.Level.BASIC  // Reduced logging overhead
-                })
+                addInterceptor(createLoggingInterceptor())
             }
         }
         .build()
@@ -50,11 +68,7 @@ object ApiClient {
         .retryOnConnectionFailure(false)       // Don't retry update checks
         .apply {
             if (BuildConfig.ENABLE_LOGGING) {
-                addInterceptor(HttpLoggingInterceptor { message ->
-                    Log.d(TAG, "UPDATE_CHECK: $message")
-                }.apply {
-                    level = HttpLoggingInterceptor.Level.BASIC
-                })
+                addInterceptor(createLoggingInterceptor())
             }
         }
         .build()
@@ -68,19 +82,31 @@ object ApiClient {
         .retryOnConnectionFailure(false)       // Don't auto-retry, we'll handle retries manually
         .apply {
             if (BuildConfig.ENABLE_LOGGING) {
-                addInterceptor(HttpLoggingInterceptor { message ->
-                    Log.d(TAG, "VIDEO_API: $message")
-                }.apply {
-                    level = HttpLoggingInterceptor.Level.BASIC
-                })
+                addInterceptor(createLoggingInterceptor())
+            }
+        }
+        .build()
+    
+    // Specialized client for YouTube server with extended timeouts for video processing
+    private val youtubeApiClient = OkHttpClient.Builder()
+        .connectTimeout(90, TimeUnit.SECONDS)   // Extended connection timeout
+        .readTimeout(300, TimeUnit.SECONDS)     // 5 minutes for video processing
+        .writeTimeout(60, TimeUnit.SECONDS)     // Write timeout
+        .callTimeout(0, TimeUnit.SECONDS)       // No total timeout - let it run as long as needed
+        .retryOnConnectionFailure(false)        // Manual retry handling
+        .apply {
+            if (BuildConfig.ENABLE_LOGGING) {
+                addInterceptor(createLoggingInterceptor())
             }
         }
         .build()
     
     init {
         Log.i(TAG, "ApiClient initialized with base URL: $BASE_URL")
+        Log.i(TAG, "YouTube server URL: $YOUTUBE_SERVER_URL")
         Log.i(TAG, "Update check client configured for Render free tier cold starts")
         Log.i(TAG, "Video API client configured for Render free tier cold starts")
+        Log.i(TAG, "YouTube API client configured with 5-minute read timeout and no call timeout limit")
     }
     
     private val retrofit = Retrofit.Builder()
@@ -96,5 +122,13 @@ object ApiClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
     
+    // Retrofit instance for YouTube server with extended timeouts
+    private val youtubeServerRetrofit = Retrofit.Builder()
+        .baseUrl(YOUTUBE_SERVER_URL)
+        .client(youtubeApiClient)  // Use YouTube-specific client with longer timeouts
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+    
     val videoDownloadApi: VideoDownloadApi = videoApiRetrofit.create(VideoDownloadApi::class.java)
+    val youtubeDownloadApi: VideoDownloadApi = youtubeServerRetrofit.create(VideoDownloadApi::class.java)
 }

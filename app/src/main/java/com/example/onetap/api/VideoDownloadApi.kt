@@ -7,7 +7,8 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 
 data class DownloadRequest(
-    val url: String
+    val url: String,
+    val link: Boolean = true  // Request link format instead of direct file
 )
 
 data class DownloadResponse(
@@ -29,7 +30,37 @@ data class DownloadResponse(
     val files: List<DownloadFile>? = null,
     val platform: String? = null,
     @SerializedName("download_url")
-    val downloadUrl: String? = null
+    val downloadUrl: String? = null,
+    // YouTube server specific fields
+    @SerializedName("download_link")
+    val downloadLink: String? = null,
+    @SerializedName("video_info")
+    val videoInfo: VideoInfo? = null
+) {
+    // Helper to get the actual download URL from either format
+    fun getActualDownloadUrl(): String? = downloadUrl ?: downloadLink
+    
+    // Helper to get the actual filename from either format (including nested videoInfo)
+    fun getActualFilename(): String? = filename ?: videoInfo?.filename
+    
+    // Helper to get the actual title from either format (including nested videoInfo)
+    fun getActualTitle(): String? = title ?: videoInfo?.title
+}
+
+data class VideoInfo(
+    val quality: VideoQuality? = null,
+    val filename: String? = null,
+    val title: String? = null,
+    val duration: Int? = null
+)
+
+data class VideoQuality(
+    val resolution: String? = null,
+    @SerializedName("frame_rate")
+    val frameRate: Int? = null,
+    @SerializedName("bit_rate")
+    val bitRate: Int? = null,
+    val hdr: Boolean? = null
 )
 
 data class DownloadFile(
@@ -62,6 +93,6 @@ interface VideoDownloadApi {
     @POST("/download")
     suspend fun downloadVideo(@Body request: DownloadRequest): Response<DownloadResponse>
     
-    @GET("/")
+    @GET("/version")
     suspend fun getSystemInfo(): Response<VersionResponse>
 }

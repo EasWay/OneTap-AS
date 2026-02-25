@@ -120,7 +120,7 @@ class UpdateManager(private val context: Context) {
                     val isUpdateAvailable = serverVersionCode > currentVersionCode
                     
                     // Use server-provided APK URL and release notes
-                    val downloadUrl = systemInfo.apkUrl ?: "https://github.com/YourUsername/OneTap/releases/latest"
+                    val downloadUrl = systemInfo.apkUrl ?: "https://github.com/EasWay/OneTap-Releases/releases/latest"
                     val releaseNotes = systemInfo.releaseNotes ?: "New version ${systemInfo.version} available with ${systemInfo.totalPlatforms} supported platforms"
                     
                     val updateInfo = UpdateInfo(
@@ -443,6 +443,12 @@ class UpdateManager(private val context: Context) {
             Log.d(TAG, "📦 Installing APK: ${apkFile.absolutePath}")
             Log.d(TAG, "📊 APK file size: ${apkFile.length()} bytes")
             
+            // Security: Verify APK signature before installation
+            if (!verifyApkSignature(apkFile)) {
+                Log.e(TAG, "🚫 APK signature verification failed - installation blocked")
+                return
+            }
+            
             val apkUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 FileProvider.getUriForFile(
                     context,
@@ -466,6 +472,80 @@ class UpdateManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "💥 Error installing APK: ${e.javaClass.simpleName}", e)
             Log.e(TAG, "💥 Installation error: ${e.message}")
+        }
+    }
+    
+    /**
+     * Security: Verify APK signature to prevent malicious updates
+     */
+    private fun verifyApkSignature(apkFile: File): Boolean {
+        try {
+            val pm = context.packageManager
+            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getPackageArchiveInfo(
+                    apkFile.absolutePath,
+                    android.content.pm.PackageManager.PackageInfoFlags.of(android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getPackageArchiveInfo(apkFile.absolutePath, android.content.pm.PackageManager.GET_SIGNATURES)
+            }
+            
+            if (packageInfo == null) {
+                Log.e(TAG, "🚫 Could not read APK package info")
+                return false
+            }
+            
+            // Get current app signature
+            val currentPackageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getPackageInfo(
+                    context.packageName,
+                    android.content.pm.PackageManager.PackageInfoFlags.of(android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_SIGNATURES)
+            }
+            
+            // Compare signatures
+            val newSignatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                packageInfo.signingInfo?.apkContentsSigners
+            } else {
+                @Suppress("DEPRECATION")
+                packageInfo.signatures
+            }
+            
+            val currentSignatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                currentPackageInfo.signingInfo?.apkContentsSigners
+            } else {
+                @Suppress("DEPRECATION")
+                currentPackageInfo.signatures
+            }
+            
+            if (newSignatures == null || currentSignatures == null) {
+                Log.e(TAG, "🚫 Could not extract signatures")
+                return false
+            }
+            
+            // Verify signatures match
+            if (newSignatures.size != currentSignatures.size) {
+                Log.e(TAG, "🚫 Signature count mismatch")
+                return false
+            }
+            
+            for (i in newSignatures.indices) {
+                if (!newSignatures[i].toByteArray().contentEquals(currentSignatures[i].toByteArray())) {
+                    Log.e(TAG, "🚫 Signature mismatch at index $i")
+                    return false
+                }
+            }
+            
+            Log.i(TAG, "✅ APK signature verified successfully")
+            return true
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "💥 Error verifying APK signature: ${e.message}", e)
+            return false
         }
     }
     

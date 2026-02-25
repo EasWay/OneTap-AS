@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Security: Only allow HTTPS connections -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Security: Certificate pinning for your server (optional but recommended) -->
+    <!-- Uncomment and add your certificate pins when ready -->
+    <!--
+    <domain-config>
+        <domain includeSubdomains="true">onetap-225t.onrender.com</domain>
+        <pin-set expiration="2026-01-01">
+            <pin digest="SHA-256">REPLACE_WITH_YOUR_CERTIFICATE_PIN</pin>
+        </pin-set>
+    </domain-config>
+    -->
+</network-security-config>

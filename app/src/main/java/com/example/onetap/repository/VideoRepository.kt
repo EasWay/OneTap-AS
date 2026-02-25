@@ -60,7 +60,7 @@ class VideoRepository {
     }
 
     /**
-     * Ultra-fast batch download for multiple YouTube videos
+     * Ultra-fast batch download for multiple videos
      */
     suspend fun downloadMultipleVideos(
         context: Context, 
@@ -71,33 +71,55 @@ class VideoRepository {
         
         Log.i(tag, "🎯 Starting ultra-fast batch download of ${videoUrls.size} videos")
         
-        // Process URLs and get download info from server
+        // Process URLs and get download info
         val batchRequests = mutableListOf<BatchDownloadRequest>()
         
         for ((index, videoUrl) in videoUrls.withIndex()) {
             try {
                 Log.d(tag, "📋 Processing URL ${index + 1}/${videoUrls.size}: $videoUrl")
                 
-                // Get download info from server
-                val response = getServerProcessedResponse(videoUrl, 2)
                 val platform = detectPlatform(videoUrl)
+                val downloadId = UUID.randomUUID().toString()
+                
+                // Get download info from server for all platforms
+                val response = getServerProcessedResponse(videoUrl, 2)
                 
                 // Generate appropriate filename based on platform and response
                 val filename = if (isMusicPlatform(platform)) {
-                    generateMusicFilename(response.title, response.filename, platform)
+                    generateMusicFilename(response.getActualTitle(), response.getActualFilename(), platform)
                 } else {
-                    response.filename ?: "video_${index + 1}.mp4"
+                    response.getActualFilename() ?: "video_${index + 1}.mp4"
                 }
-                val downloadId = UUID.randomUUID().toString()
                 
-                // Check for duplicates
+                // Check for duplicates - prioritize URL check
                 val downloadHistoryManager = DownloadHistoryManager(context)
-                if (!downloadHistoryManager.isAlreadyDownloadedByFilename(filename)) {
-                    // Construct download URL
-                    val downloadUrl = if (response.downloadUrl?.startsWith("http") == true) {
-                        response.downloadUrl // Direct URL
+                
+                // Check by URL first (most reliable)
+                val shouldSkip = if (downloadHistoryManager.isAlreadyDownloadedByUrlHash(videoUrl)) {
+                    true
+                } else {
+                    // Only check by filename for non-generic names
+                    val isGenericFilename = filename.lowercase().let { name ->
+                        name.contains("facebook reel") || name.contains("tiktok") || 
+                        name == "video.mp4" || name == "instagram.mp4" || 
+                        name.startsWith("media_") || name.startsWith("- ")
+                    }
+                    !isGenericFilename && downloadHistoryManager.isAlreadyDownloadedByFilename(filename)
+                }
+                
+                if (!shouldSkip) {
+                    // Construct download URL - ensure HTTPS
+                    val downloadUrl = if (response.getActualDownloadUrl()?.startsWith("http") == true) {
+                        val rawUrl = response.getActualDownloadUrl()!!
+                        if (rawUrl.startsWith("http://")) {
+                            rawUrl.replace("http://", "https://")
+                        } else {
+                            rawUrl
+                        }
                     } else {
-                        "${ApiClient.BASE_URL.trimEnd('/')}${response.downloadUrl}"
+                        val platform = detectPlatform(videoUrl)
+                        val baseUrl = getBaseUrlForPlatform(platform)
+                        "${baseUrl.trimEnd('/')}${response.getActualDownloadUrl()}"
                     }
                     
                     batchRequests.add(BatchDownloadRequest(downloadId, downloadUrl, filename))
@@ -155,9 +177,16 @@ class VideoRepository {
         try {
             Log.i(tag, "🎯 Starting enhanced download with progress tracking")
             
-            // Get download info from server
+            // Get download info from server for all platforms
             val response = getServerProcessedResponse(videoUrl, 2)
-            val platform = detectPlatform(videoUrl)
+            
+            Log.d(tag, "📊 Server response details:")
+            Log.d(tag, "   - Status: ${response.status}")
+            Log.d(tag, "   - Platform: ${response.platform}")
+            Log.d(tag, "   - Filename: ${response.getActualFilename()}")
+            Log.d(tag, "   - Download URL: ${response.getActualDownloadUrl()?.take(100)}...")
+            Log.d(tag, "   - Title: ${response.getActualTitle()}")
+            Log.d(tag, "   - Type: ${response.type}")
             
             // Check if this is a multi-image download
             if (response.type == "multi_image" && !response.files.isNullOrEmpty()) {
@@ -168,44 +197,83 @@ class VideoRepository {
                 return@flow
             }
             
+            // Detect platform from URL
+            val platform = detectPlatform(videoUrl)
+            
             // Generate appropriate filename based on platform and response
-            val filename = if (isMusicPlatform(platform)) {
-                generateMusicFilename(response.title, response.filename, platform)
+            val rawFilename = if (isMusicPlatform(platform)) {
+                generateMusicFilename(response.getActualTitle(), response.getActualFilename(), platform)
             } else {
-                response.filename ?: "video.mp4"
+                response.getActualFilename() ?: "video.mp4"
             }
+            
+            // Sanitize filename for all platforms
+            val filename = sanitizeFilename(rawFilename)
             
             Log.i(tag, "🎵 Platform: $platform, Generated filename: $filename")
             
-            // Check for duplicates
+            // Check for duplicates - prioritize URL check over filename
             val downloadHistoryManager = DownloadHistoryManager(context)
-            if (downloadHistoryManager.isAlreadyDownloadedByFilename(filename)) {
+            
+            // First check by URL (most reliable for unique content)
+            if (downloadHistoryManager.isAlreadyDownloadedByUrlHash(videoUrl)) {
                 val downloadInfo = downloadHistoryManager.getDownloadInfoByFilename(filename)
                 val timeSince = downloadInfo?.let { downloadHistoryManager.getTimeSinceDownload(it.downloadedAt) } ?: "recently"
                 emit(DownloadProgress.Error(UUID.randomUUID().toString(), filename, "Already downloaded $timeSince"))
                 return@flow
             }
             
-            // Construct download URL based on platform
-            val downloadUrl = if (response.downloadUrl?.startsWith("http") == true) {
-                // Direct URL (YouTube) - use as-is for ultra-fast download
-                Log.i(tag, "📱 Direct YouTube URL detected - using AdvancedDownloadManager")
-                response.downloadUrl
-            } else {
-                // Server relative URL (other platforms) - prepend base URL
-                "${ApiClient.BASE_URL.trimEnd('/')}${response.downloadUrl}"
+            // Only check by filename for non-generic names
+            val isGenericFilename = filename.lowercase().let { name ->
+                name.contains("facebook reel") || name.contains("tiktok") || 
+                name == "video.mp4" || name == "instagram.mp4" || 
+                name.startsWith("media_") || name.startsWith("- ")
             }
             
-            // For YouTube direct URLs, use AdvancedDownloadManager for better performance
-            if (response.downloadUrl?.startsWith("http") == true && detectPlatform(videoUrl) == "youtube") {
-                val result = handleYouTubeDirectDownload(context, downloadUrl, filename, videoUrl)
-                emit(DownloadProgress.Completed(UUID.randomUUID().toString(), filename, "", 0L))
+            if (!isGenericFilename && downloadHistoryManager.isAlreadyDownloadedByFilename(filename)) {
+                val downloadInfo = downloadHistoryManager.getDownloadInfoByFilename(filename)
+                val timeSince = downloadInfo?.let { downloadHistoryManager.getTimeSinceDownload(it.downloadedAt) } ?: "recently"
+                emit(DownloadProgress.Error(UUID.randomUUID().toString(), filename, "Already downloaded $timeSince"))
                 return@flow
             }
             
-            Log.i(tag, "📱 Using ultra-fast download for: $filename")
+            // Detect if this is a direct URL (YouTube) or stream proxy URL
+            val isDirectUrl = response.getActualDownloadUrl()?.startsWith("http") == true
             
-            // Use advanced download manager
+            Log.d(tag, "🔍 Download URL analysis:")
+            Log.d(tag, "   - Raw URL: ${response.getActualDownloadUrl()}")
+            Log.d(tag, "   - Is Direct URL: $isDirectUrl")
+            Log.d(tag, "   - Platform: ${response.platform}")
+            
+            val downloadUrl = if (isDirectUrl) {
+                // Direct URL (YouTube) - ensure HTTPS
+                val rawUrl = response.getActualDownloadUrl()!!
+                val secureUrl = if (rawUrl.startsWith("http://")) {
+                    rawUrl.replace("http://", "https://")
+                } else {
+                    rawUrl
+                }
+                Log.i(tag, "📱 Direct URL detected for ${detectPlatform(videoUrl)}")
+                Log.d(tag, "   - Full URL: $secureUrl")
+                Log.d(tag, "   - URL length: ${secureUrl.length}")
+                Log.d(tag, "   - URL host: ${java.net.URL(secureUrl).host}")
+                secureUrl
+            } else {
+                // Server relative URL (stream proxy) - prepend appropriate base URL
+                val platform = detectPlatform(videoUrl)
+                val baseUrl = getBaseUrlForPlatform(platform)
+                val fullUrl = "${baseUrl.trimEnd('/')}${response.getActualDownloadUrl()}"
+                Log.i(tag, "📱 Using ${if (platform == "youtube") "YouTube" else "main"} server stream proxy")
+                Log.d(tag, "   - Relative path: ${response.getActualDownloadUrl()}")
+                Log.d(tag, "   - Full URL: $fullUrl")
+                fullUrl
+            }
+            
+            Log.i(tag, "🚀 Starting download with AdvancedDownloadManager")
+            Log.d(tag, "   - Filename: $filename")
+            Log.d(tag, "   - Download URL: ${downloadUrl.take(100)}...")
+            
+            // Use advanced download manager for all platforms
             advancedDownloadManager?.downloadWithProgress(downloadUrl, filename)?.collect { progress ->
                 progressCallback?.invoke(progress)
                 
@@ -274,7 +342,7 @@ class VideoRepository {
                     }
                 }
                 
-                // Use server-side processing for single URL
+                // Use server-side processing for all platforms (including YouTube)
                 Log.i(tag, "☁️ Using server-side processing")
                 return@withContext handleServerSideDownload(context, videoUrl, retryCount)
                 
@@ -305,12 +373,57 @@ class VideoRepository {
             else -> "other"
         }
     }
+    
+    /**
+     * Get the appropriate base URL for the platform
+     */
+    private fun getBaseUrlForPlatform(platform: String): String {
+        return if (platform == "youtube") {
+            ApiClient.YOUTUBE_SERVER_URL
+        } else {
+            ApiClient.BASE_URL
+        }
+    }
 
     /**
      * Check if platform is a music/audio platform
      */
     private fun isMusicPlatform(platform: String): Boolean {
         return platform in listOf("soundcloud", "deezer", "spotify")
+    }
+
+    /**
+     * Sanitize filename to be filesystem-safe
+     */
+    private fun sanitizeFilename(filename: String, maxLength: Int = 100): String {
+        // Remove or replace invalid filesystem characters
+        var sanitized = filename
+            .replace(Regex("[/\\\\:*?\"<>|#]"), "") // Remove invalid chars
+            .replace(Regex("\\s+"), " ") // Normalize whitespace
+            .trim()
+        
+        // Extract extension
+        val extension = sanitized.substringAfterLast('.', "")
+        val nameWithoutExt = if (extension.isNotEmpty()) {
+            sanitized.substringBeforeLast('.')
+        } else {
+            sanitized
+        }
+        
+        // Truncate name if too long (keeping room for extension)
+        val maxNameLength = if (extension.isNotEmpty()) maxLength - extension.length - 1 else maxLength
+        val truncatedName = if (nameWithoutExt.length > maxNameLength) {
+            nameWithoutExt.take(maxNameLength).trim()
+        } else {
+            nameWithoutExt
+        }
+        
+        // Reconstruct filename
+        return if (extension.isNotEmpty()) {
+            "$truncatedName.$extension"
+        } else {
+            truncatedName
+        }
     }
 
     /**
@@ -330,13 +443,15 @@ class VideoRepository {
         }
         
         // Ensure proper audio file extension
-        return when {
+        val filename = when {
             baseName.endsWith(".mp3", ignoreCase = true) -> baseName
             baseName.endsWith(".m4a", ignoreCase = true) -> baseName
             baseName.endsWith(".wav", ignoreCase = true) -> baseName
             baseName.endsWith(".flac", ignoreCase = true) -> baseName
             else -> "$baseName.mp3" // Default to mp3 for music platforms
         }
+        
+        return sanitizeFilename(filename)
     }
 
     /**
@@ -489,16 +604,25 @@ class VideoRepository {
         // Single file download - use existing logic with proper filename handling
         val platform = detectPlatform(videoUrl)
         val filename = if (isMusicPlatform(platform)) {
-            generateMusicFilename(response.title, response.filename, platform)
+            generateMusicFilename(response.getActualTitle(), response.getActualFilename(), platform)
         } else {
-            response.filename ?: throw kotlin.Exception("No filename returned from server")
+            response.getActualFilename() ?: throw kotlin.Exception("No filename returned from server")
         }
         
         // Check for duplicates using existing logic
         val downloadHistoryManager = DownloadHistoryManager(context)
         
-        // Multi-layer duplicate detection:
-        // 1. PRIORITY: Check by video ID extraction from filename (most reliable for same video, different URLs)
+        // Multi-layer duplicate detection (in order of reliability):
+        // 1. PRIORITY: Check by URL hash (most reliable - exact same URL = exact same video)
+        if (downloadHistoryManager.isAlreadyDownloadedByUrlHash(videoUrl)) {
+            val urlHash = videoUrl.hashCode().toString()
+            val downloadedAt = downloadHistoryManager.prefs.getLong("url_hash_${urlHash}_time", 0L)
+            val timeSince = if (downloadedAt > 0) downloadHistoryManager.getTimeSinceDownload(downloadedAt) else "recently"
+            Log.i(tag, "🔄 Duplicate detected by URL hash: $urlHash (downloaded $timeSince)")
+            return "DUPLICATE_DETECTED:$timeSince"
+        }
+        
+        // 2. Check by video ID extraction from filename (for same video, different URLs)
         val videoId = downloadHistoryManager.extractVideoIdFromFilename(filename)
         if (videoId != null && downloadHistoryManager.prefs.contains("video_$videoId")) {
             val downloadedAt = downloadHistoryManager.prefs.getLong("video_${videoId}_time", 0L)
@@ -507,31 +631,35 @@ class VideoRepository {
             return "DUPLICATE_DETECTED:$timeSince"
         }
         
-        // 2. Check by filename prefix (for non-TikTok or when video ID extraction fails)
-        if (downloadHistoryManager.isAlreadyDownloadedByFilename(filename)) {
+        // 3. Check by filename prefix (only for non-generic names)
+        val isGenericFilename = filename.lowercase().let { name ->
+            name.contains("facebook reel") || name.contains("tiktok") || 
+            name == "video.mp4" || name == "instagram.mp4" || 
+            name.startsWith("media_") || name.startsWith("- ")
+        }
+        
+        if (!isGenericFilename && downloadHistoryManager.isAlreadyDownloadedByFilename(filename)) {
             val downloadInfo = downloadHistoryManager.getDownloadInfoByFilename(filename)
             val timeSince = downloadInfo?.let { info: DownloadInfo -> downloadHistoryManager.getTimeSinceDownload(info.downloadedAt) } ?: "recently"
             Log.i(tag, "🔄 Duplicate detected by filename: $filename (downloaded $timeSince)")
             return "DUPLICATE_DETECTED:$timeSince"
         }
-        
-        // 3. FALLBACK: Check by URL hash (only for exact same URL)
-        if (downloadHistoryManager.isAlreadyDownloadedByUrlHash(videoUrl)) {
-            val urlHash = videoUrl.hashCode().toString()
-            val downloadedAt = downloadHistoryManager.prefs.getLong("url_hash_${urlHash}_time", 0L)
-            val timeSince = if (downloadedAt > 0) downloadHistoryManager.getTimeSinceDownload(downloadedAt) else "recently"
-            Log.i(tag, "🔄 Duplicate detected by URL hash: $urlHash (downloaded $timeSince)")
-            return "DUPLICATE_DETECTED:$timeSince"
-        }
 
         // Use the download URL from server response
-        val serverFileUrl = if (!response.downloadUrl.isNullOrEmpty()) {
-            if (response.downloadUrl.startsWith("http")) {
-                // Direct URL (e.g., YouTube direct link) - use as-is
-                response.downloadUrl
+        val serverFileUrl = if (!response.getActualDownloadUrl().isNullOrEmpty()) {
+            if (response.getActualDownloadUrl()!!.startsWith("http")) {
+                // Direct URL (e.g., YouTube direct link) - ensure HTTPS
+                val rawUrl = response.getActualDownloadUrl()!!
+                if (rawUrl.startsWith("http://")) {
+                    rawUrl.replace("http://", "https://")
+                } else {
+                    rawUrl
+                }
             } else {
-                // Server relative URL (e.g., /stream/xyz) - prepend base URL
-                "${ApiClient.BASE_URL.trimEnd('/')}${response.downloadUrl}"
+                // Server relative URL (e.g., /stream/xyz) - prepend appropriate base URL
+                val platform = detectPlatform(videoUrl)
+                val baseUrl = getBaseUrlForPlatform(platform)
+                "${baseUrl.trimEnd('/')}${response.getActualDownloadUrl()}"
             }
         } else {
             // Fallback to old /files/ endpoint for backward compatibility
@@ -543,7 +671,7 @@ class VideoRepository {
         Log.d(tag, "📡 Path: ${java.net.URL(serverFileUrl).path}")
         
         // Check if this is a direct URL (YouTube) or server proxy
-        val isDirect = response.downloadUrl?.startsWith("http") == true
+        val isDirect = response.getActualDownloadUrl()?.startsWith("http") == true
         Log.i(tag, if (isDirect) "📱 Direct download from source" else "🌊 Download via server proxy")
         
         // Detect file type based on filename extension and platform
@@ -601,7 +729,26 @@ class VideoRepository {
                 
                 Log.d(tag, "Unique filename: $uniqueFilename")
                 
-                // Check for duplicates using the unique filename
+                // Check for duplicates - prioritize URL check
+                val fileUrl = if (file.downloadUrl.startsWith("http")) {
+                    // Ensure HTTPS
+                    if (file.downloadUrl.startsWith("http://")) {
+                        file.downloadUrl.replace("http://", "https://")
+                    } else {
+                        file.downloadUrl
+                    }
+                } else {
+                    val platform = detectPlatform(videoUrl)
+                    val baseUrl = getBaseUrlForPlatform(platform)
+                    "${baseUrl.trimEnd('/')}${file.downloadUrl}"
+                }
+                
+                if (downloadHistoryManager.isAlreadyDownloadedByUrlHash(fileUrl)) {
+                    Log.i(tag, "🔄 File already downloaded (by URL), skipping")
+                    successCount++
+                    continue
+                }
+                
                 if (downloadHistoryManager.isAlreadyDownloadedByFilename(uniqueFilename)) {
                     Log.i(tag, "🔄 File ${uniqueFilename} already downloaded, skipping")
                     successCount++
@@ -610,19 +757,25 @@ class VideoRepository {
                 
                 // Use the download URL from server response (could be relative or absolute)
                 val serverFileUrl = if (file.downloadUrl.isNotEmpty() && file.downloadUrl.startsWith("http")) {
-                    // Absolute URL
-                    file.downloadUrl
+                    // Absolute URL - ensure HTTPS
+                    if (file.downloadUrl.startsWith("http://")) {
+                        file.downloadUrl.replace("http://", "https://")
+                    } else {
+                        file.downloadUrl
+                    }
                 } else {
-                    // Relative URL, prepend base URL
-                    "${ApiClient.BASE_URL.trimEnd('/')}${file.downloadUrl}"
+                    // Relative URL, prepend appropriate base URL
+                    val platform = detectPlatform(videoUrl)
+                    val baseUrl = getBaseUrlForPlatform(platform)
+                    "${baseUrl.trimEnd('/')}${file.downloadUrl}"
                 }
                 
                 Log.d(tag, "Constructed server URL: $serverFileUrl")
                 val result = downloadAndSaveToGallery(context, serverFileUrl, isImage = true, isAudio = false)
                 
                 if (result.contains("Success") || result.contains("Saved")) {
-                    // Mark as downloaded using the unique filename to prevent false duplicates
-                    downloadHistoryManager.markAsDownloadedByFilename(uniqueFilename, videoUrl)
+                    // Mark as downloaded using the unique filename and actual file URL
+                    downloadHistoryManager.markAsDownloadedByFilename(uniqueFilename, serverFileUrl)
                     successCount++
                     Log.i(tag, "✅ Downloaded ${index + 1}/${files.size}: ${file.filename}")
                 } else {
@@ -649,11 +802,21 @@ class VideoRepository {
     private suspend fun getServerProcessedResponse(videoUrl: String, retryCount: Int): DownloadResponse {
         var lastException: Exception? = null
         
+        // Detect if this is a YouTube URL
+        val isYouTube = videoUrl.contains("youtube.com") || videoUrl.contains("youtu.be")
+        val apiToUse = if (isYouTube) {
+            Log.i(tag, "🎥 Routing to YouTube server")
+            ApiClient.youtubeDownloadApi
+        } else {
+            Log.i(tag, "🌐 Routing to main server")
+            ApiClient.videoDownloadApi
+        }
+        
         // Retry the API call
         repeat(retryCount) { attempt ->
             try {
-                Log.d(tag, "Making API call to backend (attempt ${attempt + 1}/$retryCount)...")
-                val apiResponse = ApiClient.videoDownloadApi.downloadVideo(DownloadRequest(videoUrl))
+                Log.d(tag, "Making API call to ${if (isYouTube) "YouTube" else "main"} backend (attempt ${attempt + 1}/$retryCount)...")
+                val apiResponse = apiToUse.downloadVideo(DownloadRequest(videoUrl))
                 
                 if (!apiResponse.isSuccessful) {
                     Log.e(tag, "Backend Failed (attempt ${attempt + 1}/$retryCount): HTTP ${apiResponse.code()}")
@@ -694,6 +857,12 @@ class VideoRepository {
                 if (!responseBody.error.isNullOrEmpty()) {
                     val errorMsg = responseBody.error
                     
+                    // Check if server says YouTube should be handled client-side
+                    if (errorMsg.contains("YOUTUBE_CLIENT_SIDE", ignoreCase = true)) {
+                        Log.i(tag, "📱 Server redirected YouTube to client-side extraction")
+                        throw UnsupportedContentException("YOUTUBE_CLIENT_SIDE")
+                    }
+                    
                     // Check for unsupported content type errors in response body
                     if (errorMsg.contains("not supported", ignoreCase = true) || 
                         errorMsg.contains("unsupported", ignoreCase = true)) {
@@ -719,7 +888,7 @@ class VideoRepository {
                 }
 
                 // Check if we have either a single file or multiple files
-                if (responseBody.filename == null && responseBody.files.isNullOrEmpty()) {
+                if (responseBody.getActualFilename() == null && responseBody.files.isNullOrEmpty()) {
                     throw kotlin.Exception("No filename or files returned from server")
                 }
 

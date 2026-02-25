@@ -4,5 +4,6 @@
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/OneTap-Server" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Youtube-server" vcs="Git" />
   </component>
 </project>
