@@ -23,6 +23,6 @@
 
 # 4. Keep YOUR App Code (The Safety Net)
 # This prevents your own classes from being renamed/stripped
--keep class com.example.onetap.** { *; }
--keepclassmembers class com.example.onetap.** { *; }
--keep interface com.example.onetap.** { *; }
+-keep class com.tapstream.downloader.** { *; }
+-keepclassmembers class com.tapstream.downloader.** { *; }
+-keep interface com.tapstream.downloader.** { *; }
