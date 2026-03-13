@@ -34,14 +34,26 @@ data class DownloadResponse(
     val platform: String? = null,
     @SerializedName("download_url")
     val downloadUrl: String? = null,
-    // YouTube server specific fields
     @SerializedName("download_link")
     val downloadLink: String? = null,
     @SerializedName("video_info")
-    val videoInfo: VideoInfo? = null
+    val videoInfo: VideoInfo? = null,
+    // J2Download specific
+    val medias: List<J2Media>? = null,
+    val size: Long? = null
 ) {
     // Helper to get the actual download URL from either format
-    fun getActualDownloadUrl(): String? = downloadUrl ?: downloadLink
+    fun getActualDownloadUrl(): String? {
+        if (downloadUrl != null) return downloadUrl
+        if (downloadLink != null) return downloadLink
+        
+        // J2Download: Pick the best video format (usually the first HD one or just the first)
+        val bestMedia = medias?.find { it.quality == "hd_no_watermark" || it.quality == "hd" }
+            ?: medias?.find { it.type == "video" }
+            ?: medias?.firstOrNull()
+            
+        return bestMedia?.url
+    }
     
     // Helper to get the actual filename from either format (including nested videoInfo)
     fun getActualFilename(): String? = filename ?: videoInfo?.filename
@@ -71,6 +83,15 @@ data class DownloadFile(
     @SerializedName("download_url")
     val downloadUrl: String,
     val type: String
+)
+
+data class J2Media(
+    val url: String,
+    val quality: String? = null,
+    val extension: String? = null,
+    val type: String? = null,
+    @SerializedName("data_size")
+    val dataSize: Long? = null
 )
 
 data class VersionResponse(

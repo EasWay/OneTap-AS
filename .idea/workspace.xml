@@ -10,8 +10,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="62def3df-ce13-4ea2-9c1d-9e58d7c42a11" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/8.11.1/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.11.1/executionHistory/executionHistory.bin" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/8.11.1/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.11.1/executionHistory/executionHistory.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/8.11.1/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.11.1/fileHashes/fileHashes.bin" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/8.11.1/fileHashes/fileHashes.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.11.1/fileHashes/fileHashes.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/8.11.1/fileHashes/resourceHashesCache.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.11.1/fileHashes/resourceHashesCache.bin" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/OneTap-Server" beforeDir="false" afterPath="$PROJECT_DIR$/OneTap-Server" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Youtube-server" beforeDir="false" afterPath="$PROJECT_DIR$/Youtube-server" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Youtube-server/CHECK_TOR_ON_RENDER.md" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/Youtube-server/PROXY_SETUP.md" beforeDir="false" />
@@ -27,6 +34,9 @@
       <change beforePath="$PROJECT_DIR$/Youtube-server/test_proxy.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/Youtube-server/test_render_tor.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/Youtube-server/test_tor_connection.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/tapstream/downloader/api/VideoDownloadApi.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/tapstream/downloader/api/VideoDownloadApi.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/tapstream/downloader/network/TurnstileBypassProvider.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/tapstream/downloader/network/TurnstileBypassProvider.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/tapstream/downloader/repository/VideoRepository.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/tapstream/downloader/repository/VideoRepository.kt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -94,7 +104,7 @@
   <component name="PsdUISettings">
     <option name="LAST_EDITED_BUILD_TYPE" value="release" />
   </component>
-  <component name="RunManager" selected="Android App.OneTap-as.app">
+  <component name="RunManager" selected="Android App.App.OneTap-as.app">
     <configuration name="App.OneTap-as.app" type="AndroidRunConfigurationType" factoryName="Android App" activateToolWindowBeforeRun="false">
       <module name="OneTap-as.app" />
       <option name="ANDROID_RUN_CONFIGURATION_SCHEMA_VERSION" value="1" />

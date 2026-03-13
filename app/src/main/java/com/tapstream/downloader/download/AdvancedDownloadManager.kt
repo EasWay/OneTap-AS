@@ -38,7 +38,7 @@ class AdvancedDownloadManager @Inject constructor(
     /**
      * Download a file with progress tracking
      */
-    fun downloadWithProgress(downloadUrl: String, filename: String): Flow<DownloadProgress> = channelFlow {
+    fun downloadWithProgress(downloadUrl: String, filename: String, totalSize: Long? = null): Flow<DownloadProgress> = channelFlow {
         val progressChannel = Channel<DownloadProgress>(Channel.UNLIMITED)
         
         try {
@@ -63,7 +63,11 @@ class AdvancedDownloadManager @Inject constructor(
                 return@channelFlow
             }
             
-            val contentLength = body.contentLength()
+            var contentLength = body.contentLength()
+            if (contentLength <= 0 && totalSize != null && totalSize > 0) {
+                contentLength = totalSize
+                Log.i(tag, "Using provided totalSize for progress: $contentLength")
+            }
             val tempFile = File(context.cacheDir, filename)
             
             // Launch a coroutine to forward progress updates from the channel

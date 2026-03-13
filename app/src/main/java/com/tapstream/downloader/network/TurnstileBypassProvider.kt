@@ -1,147 +1,270 @@
 package com.tapstream.downloader.network
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.webkit.CookieManager
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.view.ViewGroup
+import android.webkit.*
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.io.ByteArrayInputStream
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class TurnstileSession(
-    val csrfToken: String,
-    val cookieString: String,
-    val userAgent: String,
-    val timestamp: Long = System.currentTimeMillis()
-)
+private const val TAG = "TurnstileBypass"
 
 @Singleton
 class TurnstileBypassProvider @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val TAG = "TurnstileBypass"
-    private val J2_URL = "https://j2download.com"
-    private val SPOOF_UA = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36"
-    
-    // Cache the session for 20 minutes
-    private var cachedSession: TurnstileSession? = null
-    private val CACHE_DURATION = 20 * 60 * 1000L
+    private var webView: WebView? = null
+    private val capturedJwt = AtomicReference<String?>(null)
+    private var lastUserAgent = ""
+    private var currentVideoUrl = ""
 
     /**
-     * Get a valid Turnstile session, either from cache or by spawning a WebView.
+     * Obtains a valid J2Session by solving the Turnstile challenge in a WebView.
+     * Uses a Native Hijack strategy to capture cryptographic headers and fetch JWT via OkHttp.
+     * @param videoUrl The target video URL to trigger J2Download's processing.
      */
-    suspend fun getSession(): TurnstileSession? = withContext(Dispatchers.Main) {
-        // 1. Check Cache
-        cachedSession?.let {
-            if (System.currentTimeMillis() - it.timestamp < CACHE_DURATION) {
-                Log.i(TAG, "🚀 Using cached Turnstile session")
-                return@withContext it
+    suspend fun getSession(videoUrl: String): J2Session? = withContext(Dispatchers.Main) {
+        capturedJwt.set(null)
+        currentVideoUrl = videoUrl
+        
+        Log.i(TAG, "🌐 Initializing Turnstile bypass WebView (Auto-Clicker Mode)...")
+        
+        initializeWebView()
+        Log.i(TAG, "🚀 Loading Base URL for Auto-Clicker...")
+        webView?.loadUrl("https://j2download.com/")
+
+        // Wait for JWT with 60s timeout
+        withTimeoutOrNull(60_000) {
+            var attempts = 0
+            while (capturedJwt.get() == null) {
+                attempts++
+                if (attempts % 5 == 0) {
+                    Log.d(TAG, "⏳ Polling for JWT... (${attempts} polls)")
+                }
+                
+                // Potential safety reload if cookies exist but JWT is missing
+                if (attempts == 30) {
+                    val cookies = CookieManager.getInstance().getCookie("https://j2download.com")
+                    if (cookies?.contains("jx_session") == true) {
+                        Log.w(TAG, "⚠️ Session cookie found but no JWT. Forcing reload...")
+                        webView?.reload()
+                    }
+                }
+                
+                delay(1000)
             }
         }
 
-        Log.i(TAG, "🌐 Initializing Turnstile bypass WebView...")
-        
-        // 2. Spawn WebView with timeout
-        val session = withTimeoutOrNull(15000) { // 15s total timeout
-            interceptSession()
+        val jwt = capturedJwt.get()
+        if (jwt != null) {
+            val cookies = CookieManager.getInstance().getCookie("https://j2download.com") ?: ""
+            Log.i(TAG, "✅ Turnstile Success! J2Session captured.")
+            cleanup()
+            return@withContext J2Session(
+                jwtAccessToken = jwt,
+                cookieString = cookies,
+                userAgent = lastUserAgent
+            )
         }
 
-        if (session != null) {
-            Log.i(TAG, "✅ Turnstile Success! Session captured.")
-            cachedSession = session
-        } else {
-            Log.e(TAG, "❌ Turnstile Bypass Failed (Timeout or Error)")
-        }
-
-        return@withContext session
+        Log.e(TAG, "❌ Turnstile Bypass Timeout (No JWT captured)")
+        cleanup()
+        null
     }
 
     /**
-     * Clear the cache if the backend reports an expired token.
+     * Clears internal state and session cookies.
      */
     fun clearCache() {
-        Log.w(TAG, "🧹 Clearing Turnstile session cache")
-        cachedSession = null
+        Log.d(TAG, "🧹 Clearing captured JWT and session state...")
+        capturedJwt.set(null)
+        CookieManager.getInstance().removeAllCookies(null)
     }
 
-    private suspend fun interceptSession(): TurnstileSession? = withContext(Dispatchers.Main) {
-        val deferredToken = CompletableDeferred<TurnstileSession?>()
-        var webView: WebView? = null
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun initializeWebView() {
+        if (webView != null) cleanup()
 
-        try {
-            webView = WebView(context).apply {
-                // Configure 1dp size but keeps it active
-                layoutParams = android.view.ViewGroup.LayoutParams(1, 1)
-                alpha = 0.01f
-                
-                settings.apply {
-                    javaScriptEnabled = true
-                    domStorageEnabled = true
-                    databaseEnabled = true
-                    userAgentString = SPOOF_UA
-                    // Disable cache for the intercept to ensure a fresh session if needed
-                    cacheMode = WebSettings.LOAD_NO_CACHE
+        webView = WebView(context).apply {
+            settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                databaseEnabled = true
+                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                mediaPlaybackRequiresUserGesture = false
+                // Use a more realistic Mobile Chrome User-Agent
+                userAgentString = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+                lastUserAgent = userAgentString
+            }
+
+            // High priority: Hijack the network request at the OS layer
+            webViewClient = object : WebViewClient() {
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): WebResourceResponse? {
+                    val url = request?.url?.toString() ?: return super.shouldInterceptRequest(view, request)
+                    val method = request.method ?: "GET"
+                    val headers = request.requestHeaders ?: emptyMap()
+
+                    // 🔍 ULTRA-VERBOSE: Log every single request to find where it's stalling
+                    Log.d(TAG, "📡 Intercepting: [$method] ${url.take(150)}")
+
+                    // 🚨 NATIVE HIJACK: Catch the authentication request
+                    if (url.contains("auth/issue") || url.contains("issue")) {
+                        Log.i(TAG, "🚨 HANDSHAKE DETECTED: $url")
+                        
+                        val nonce = headers.entries.find { it.key.equals("x-page-nonce", ignoreCase = true) }?.value
+                        val pow = headers.entries.find { it.key.equals("x-pow-solution", ignoreCase = true) }?.value
+
+                        if (nonce != null && pow != null) {
+                            Log.i(TAG, "🔑 Stole PoW Headers! Nonce: $nonce, PoW: $pow")
+                            fetchJwtNatively(url, headers)
+                            val emptyStream = ByteArrayInputStream("{}".toByteArray())
+                            return WebResourceResponse("application/json", "UTF-8", emptyStream)
+                        } else {
+                            Log.w(TAG, "⚠️ Handshake found but headers missing! Header keys: ${headers.keys}")
+                        }
+                    }
+
+                    // Block ads but be MORE PERMISSIVE during debugging
+                    if (!isDomainAllowed(url)) {
+                        return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream("".toByteArray()))
+                    }
+
+                    return super.shouldInterceptRequest(view, request)
                 }
 
-                webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView?, url: String?) {
-                        super.onPageFinished(view, url)
-                        Log.d(TAG, "📄 Page loaded: $url")
-                        
-                        // Wait for Turnstile challenge to complete
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            val cookieManager = CookieManager.getInstance()
-                            val cookies = cookieManager.getCookie(J2_URL)
-                            
-                            if (cookies != null && cookies.contains("csrf_token")) {
-                                val token = extractCsrfToken(cookies)
-                                if (token != null) {
-                                    deferredToken.complete(TurnstileSession(
-                                        csrfToken = token,
-                                        cookieString = cookies,
-                                        userAgent = SPOOF_UA
-                                    ))
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    Log.d(TAG, "📄 Page started: $url")
+                    // No more JS injection needed! The hijack happens natively.
+                }
+
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    Log.d(TAG, "📄 Page loaded: $url")
+                    
+                    if (url == "https://j2download.com/") {
+                        Log.d(TAG, "🤖 Injecting Auto-Clicker script for: $currentVideoUrl")
+                        // Inject JS to fill the input and click the submit button
+                        val jsClicker = """
+                            setTimeout(function() {
+                                var input = document.getElementById('url');
+                                var btn = document.querySelector('button[type="submit"]');
+                                
+                                if (input && btn) {
+                                    console.log('🤖 Auto-clicker: Filling URL and clicking download...');
+                                    // 1. Set the value
+                                    input.value = '$currentVideoUrl';
+                                    
+                                    // 2. Dispatch an 'input' event so the Vue.js frontend registers the change
+                                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                                    
+                                    // 3. Click the download button
+                                    btn.click();
                                 } else {
-                                    Log.w(TAG, "⚠️ cookies found but csrf_token extraction failed")
+                                    console.log('❌ Auto-clicker failed: Elements not found.');
                                 }
-                            } else {
-                                Log.d(TAG, "⏳ Waiting for challenge... cookies: $cookies")
-                            }
-                        }, 4000) // Give it 4 seconds to solve
+                            }, 1500); // Wait 1.5 seconds for Vue to fully mount
+                        """.trimIndent()
+                        
+                        view?.evaluateJavascript(jsClicker, null)
                     }
                 }
             }
 
-            webView.loadUrl(J2_URL)
-            
-            // Return the deferred result
-            val result = deferredToken.await()
-            return@withContext result
+            // Layout Params for "semi-visible" state to avoid bot detection
+            layoutParams = ViewGroup.LayoutParams(100, 100)
+            alpha = 0.1f
+        }
+    }
 
-        } catch (e: Exception) {
-            Log.e(TAG, "💥 WebView Error: ${e.message}")
-            return@withContext null
-        } finally {
-            // Cleanup
-            webView?.let {
-                it.stopLoading()
-                it.destroy()
-                Log.d(TAG, "🗑️ WebView destroyed")
+    private fun fetchJwtNatively(url: String, headers: Map<String, String>) {
+        // Launch on IO thread so we don't block the WebView's thread
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val client = OkHttpClient.Builder()
+                    .followRedirects(true)
+                    .build()
+                
+                val cookieManager = CookieManager.getInstance()
+                val cookies = cookieManager.getCookie("https://j2download.com") ?: ""
+
+                // Rebuild the request exactly as the browser intended
+                val requestBuilder = Request.Builder()
+                    .url(url)
+                    .post("".toRequestBody()) // Empty body, just like the browser
+                    .addHeader("Cookie", cookies)
+                
+                // Add all the intercepted headers (User-Agent, Nonce, PoW, etc.)
+                for ((key, value) in headers) {
+                    if (!key.equals("Cookie", ignoreCase = true)) {
+                        requestBuilder.addHeader(key, value)
+                    }
+                }
+
+                Log.d(TAG, "📡 Sending native HTTP POST to /api/auth/issue...")
+                val response = client.newCall(requestBuilder.build()).execute()
+                val responseBody = response.body?.string()
+
+                if (response.isSuccessful && responseBody != null) {
+                    val json = JSONObject(responseBody)
+                    val jwt = json.optString("accessToken")
+                    
+                    if (jwt.isNotEmpty()) {
+                        Log.i(TAG, "✅ Native Hijack Success! JWT obtained.")
+                        capturedJwt.set(jwt)
+                    } else {
+                        Log.e(TAG, "❌ JWT missing from native response: $responseBody")
+                    }
+                } else {
+                    Log.e(TAG, "❌ Native request failed: ${response.code} - ${response.message}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "💥 Native request crashed: ${e.message}")
             }
         }
     }
 
-    private fun extractCsrfToken(cookies: String): String? {
-        // Pattern: csrf_token=XYZ; or at the end
-        val match = Regex("csrf_token=([^;]+)").find(cookies)
-        return match?.groupValues?.get(1)
+    private fun isDomainAllowed(url: String): Boolean {
+        val allowedHosts = listOf(
+            "j2download.com",
+            "cloudflare.com",
+            "challenges.cloudflare.com",
+            "cloudflareinsights.com",
+            "cloudflare-eth.com",
+            "gstatic.com",
+            "google.com",
+            "googleapis.com"
+        )
+        return try {
+            val host = java.net.URL(url).host.lowercase()
+            allowedHosts.any { host.contains(it) }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun cleanup() {
+        Handler(Looper.getMainLooper()).post {
+            webView?.apply {
+                stopLoading()
+                loadUrl("about:blank")
+                clearHistory()
+                removeAllViews()
+                destroy()
+            }
+            webView = null
+        }
     }
 }

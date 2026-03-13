@@ -20,12 +20,16 @@ import com.tapstream.downloader.utils.DownloadInfo
 import com.tapstream.downloader.utils.SonnerToast
 import com.tapstream.downloader.utils.StreamUtils
 import com.tapstream.downloader.network.TurnstileBypassProvider
+import com.tapstream.downloader.network.J2Session
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.emitAll
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Request
 import retrofit2.HttpException
 import java.io.InputStream
@@ -186,6 +190,10 @@ class VideoRepository @Inject constructor(
             Log.d(tag, "   - Title: ${response.getActualTitle()}")
             Log.d(tag, "   - Type: ${response.type}")
             
+            // The backend now handles J2 extraction robustly.
+            // We just need to ensure the cookies/JWT are passed via getServerProcessedResponse
+            // which is already handled above in line 183 (via the provider).
+            
             // Check if this is a multi-image or multi-video download
             if ((response.type == "multi_image" || response.type == "multi_video") && !response.files.isNullOrEmpty()) {
                 Log.i(tag, "📸 Multi-${response.type} response: ${response.files.size} files")
@@ -272,7 +280,7 @@ class VideoRepository @Inject constructor(
             Log.d(tag, "   - Download URL: ${downloadUrl.take(100)}...")
             
             // Use advanced download manager for all platforms
-            advancedDownloadManager.downloadWithProgress(downloadUrl, filename).collect { progress ->
+            advancedDownloadManager.downloadWithProgress(downloadUrl, filename, response.size).collect { progress ->
                 progressCallback?.invoke(progress)
                 
                 when (progress) {
@@ -694,6 +702,7 @@ class VideoRepository @Inject constructor(
         return result
     }
 
+
     private suspend fun handleMultipleDownloads(context: Context, response: DownloadResponse, videoUrl: String): String {
         val files = response.files ?: return "No files to download"
         val downloadHistoryManager = DownloadHistoryManager(context)
@@ -818,15 +827,15 @@ class VideoRepository @Inject constructor(
         repeat(retryCount) { attempt ->
             try {
                 // For non-YouTube URLs, try to get a Turnstile session
-                var turnstileSession: com.tapstream.downloader.network.TurnstileSession? = null
+                var turnstileSession: com.tapstream.downloader.network.J2Session? = null
                 if (!isYouTube) {
-                    turnstileSession = turnstileBypassProvider.getSession()
+                    turnstileSession = turnstileBypassProvider.getSession(videoUrl)
                 }
 
                 Log.d(tag, "Making API call to ${if (isYouTube) "YouTube" else "main"} backend (attempt ${attempt + 1}/$retryCount)...")
                 val request = DownloadRequest(
                     url = videoUrl,
-                    csrfToken = turnstileSession?.csrfToken,
+                    csrfToken = turnstileSession?.jwtAccessToken,
                     cookieString = turnstileSession?.cookieString,
                     userAgent = turnstileSession?.userAgent
                 )
