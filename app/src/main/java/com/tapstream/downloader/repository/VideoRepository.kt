@@ -19,6 +19,7 @@ import com.tapstream.downloader.utils.DownloadHistoryManager
 import com.tapstream.downloader.utils.DownloadInfo
 import com.tapstream.downloader.utils.SonnerToast
 import com.tapstream.downloader.utils.StreamUtils
+import com.tapstream.downloader.network.TurnstileBypassProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -55,6 +56,7 @@ class VideoRepository @Inject constructor(
     private val videoDownloadApi: VideoDownloadApi,
     @Named("youtube") private val youtubeDownloadApi: VideoDownloadApi,
     private val advancedDownloadManager: AdvancedDownloadManager,
+    private val turnstileBypassProvider: TurnstileBypassProvider,
     @ApplicationContext private val appContext: Context
 ) {
     private val tag = "OneTap_VideoRepo"
@@ -815,8 +817,20 @@ class VideoRepository @Inject constructor(
         // Retry the API call
         repeat(retryCount) { attempt ->
             try {
+                // For non-YouTube URLs, try to get a Turnstile session
+                var turnstileSession: com.tapstream.downloader.network.TurnstileSession? = null
+                if (!isYouTube) {
+                    turnstileSession = turnstileBypassProvider.getSession()
+                }
+
                 Log.d(tag, "Making API call to ${if (isYouTube) "YouTube" else "main"} backend (attempt ${attempt + 1}/$retryCount)...")
-                val apiResponse = apiToUse.downloadVideo(DownloadRequest(videoUrl))
+                val request = DownloadRequest(
+                    url = videoUrl,
+                    csrfToken = turnstileSession?.csrfToken,
+                    cookieString = turnstileSession?.cookieString,
+                    userAgent = turnstileSession?.userAgent
+                )
+                val apiResponse = apiToUse.downloadVideo(request)
                 
                 if (!apiResponse.isSuccessful) {
                     Log.e(tag, "Backend Failed (attempt ${attempt + 1}/$retryCount): HTTP ${apiResponse.code()}")
@@ -825,6 +839,15 @@ class VideoRepository @Inject constructor(
                     val httpException = HttpException(apiResponse)
                     val errorMessage = ErrorMapper.mapServerError(httpException)
                     
+                    // Check for token expiration (triggered by backend returning specific error)
+                    if (errorMessage.contains("SESSION_EXPIRED", ignoreCase = true)) {
+                        Log.w(tag, "⚠️ Turnstile session expired, clearing cache and retrying...")
+                        turnstileBypassProvider.clearCache()
+                        if (attempt < retryCount - 1) {
+                            return@repeat // Continue to next attempt
+                        }
+                    }
+
                     // Check if this is an unsupported content type (don't retry these)
                     if (errorMessage.contains("not supported", ignoreCase = true) || 
                         errorMessage.contains("photo", ignoreCase = true) ||

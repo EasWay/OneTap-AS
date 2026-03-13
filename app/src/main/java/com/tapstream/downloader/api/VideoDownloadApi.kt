@@ -8,7 +8,10 @@ import retrofit2.http.POST
 
 data class DownloadRequest(
     val url: String,
-    val link: Boolean = true  // Request link format instead of direct file
+    val link: Boolean = true,  // Request link format instead of direct file
+    @SerializedName("csrf_token") val csrfToken: String? = null,
+    @SerializedName("cookie_string") val cookieString: String? = null,
+    @SerializedName("user_agent") val userAgent: String? = null
 )
 
 data class DownloadResponse(
