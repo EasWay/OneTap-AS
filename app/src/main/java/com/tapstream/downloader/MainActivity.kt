@@ -257,11 +257,20 @@ fun MinimalScreen(updateManager: UpdateManager) {
         UpdateDialog(
             updateInfo = updateInfo!!,
             onUpdateClick = {
-                isUpdating = true
-                updateManager.downloadAndInstallUpdate(
-                    updateInfo!!
-                ) { progress ->
-                    updateProgress = progress
+                if (updateInfo!!.playStoreUrl != null) {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo!!.playStoreUrl))
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Log.e("OneTap_MainActivity", "Failed to open Play Store: ${e.message}")
+                    }
+                } else {
+                    isUpdating = true
+                    updateManager.downloadAndInstallUpdate(
+                        updateInfo!!
+                    ) { progress ->
+                        updateProgress = progress
+                    }
                 }
             },
             onDismiss = {

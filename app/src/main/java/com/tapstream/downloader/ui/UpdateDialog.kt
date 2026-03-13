@@ -103,21 +103,37 @@ fun UpdateDialog(
                 
                 // Buttons
                 if (!isDownloading) {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        TextButton(
-                            onClick = onDismiss
-                        ) {
-                            Text("Later", color = Color.Gray)
+                        if (updateInfo.playStoreUrl != null) {
+                            Button(
+                                onClick = onUpdateClick,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+                            ) {
+                                Text("Update on Play Store", color = Color.Black)
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                        } else {
+                            Button(
+                                onClick = onUpdateClick,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+                            ) {
+                                Text("Update Now", color = Color.Black)
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
                         
-                        Button(
-                            onClick = onUpdateClick,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White)
+                        TextButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Update Now", color = Color.Black)
+                            Text("Later", color = Color.Gray)
                         }
                     }
                 } else {

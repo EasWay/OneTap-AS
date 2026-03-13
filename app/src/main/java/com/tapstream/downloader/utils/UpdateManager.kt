@@ -30,6 +30,7 @@ data class UpdateInfo(
     val versionCode: Int,
     val versionName: String,
     val downloadUrl: String,
+    val playStoreUrl: String? = null,
     val releaseNotes: String,
     val isUpdateAvailable: Boolean
 )
@@ -138,6 +139,7 @@ class UpdateManager @Inject constructor(
                         versionCode = serverVersionCode,
                         versionName = systemInfo.version,
                         downloadUrl = downloadUrl,
+                        playStoreUrl = systemInfo.playStoreUrl,
                         releaseNotes = releaseNotes,
                         isUpdateAvailable = isUpdateAvailable
                     )
@@ -281,6 +283,7 @@ class UpdateManager @Inject constructor(
             val latestVersionCode = json.optInt("latest_version", 0)
             val versionString = json.optString("version", "1.0.0")
             val downloadUrl = json.optString("apk_url", "")
+            val playStoreUrl = json.optString("play_store_url", "")
             val releaseNotes = json.optString("release_notes", "Bug fixes and improvements")
             
             // If latest_version is not provided, parse from version string
@@ -298,6 +301,7 @@ class UpdateManager @Inject constructor(
                 versionCode = finalVersionCode,
                 versionName = versionString,
                 downloadUrl = downloadUrl,
+                playStoreUrl = if (playStoreUrl.isNotEmpty()) playStoreUrl else null,
                 releaseNotes = releaseNotes,
                 isUpdateAvailable = isUpdateAvailable
             )

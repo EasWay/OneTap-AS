@@ -100,6 +100,8 @@ data class VersionResponse(
     val latestVersion: Int? = null,
     @SerializedName("apk_url")
     val apkUrl: String? = null,
+    @SerializedName("play_store_url")
+    val playStoreUrl: String? = null,
     @SerializedName("release_notes")
     val releaseNotes: String? = null,
     val status: String,
