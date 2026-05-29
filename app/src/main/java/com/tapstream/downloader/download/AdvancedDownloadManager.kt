@@ -127,26 +127,34 @@ class AdvancedDownloadManager @Inject constructor(
      */
     fun queueBatchDownloads(requests: List<BatchDownloadRequest>): Flow<BatchDownloadResult> = flow {
         for (request in requests) {
-            downloadWithProgress(request.downloadUrl, request.filename).collect { progress ->
-                when (progress) {
-                    is DownloadProgress.Completed -> {
-                        emit(BatchDownloadResult.Success(
-                            id = request.id,
-                            filename = request.filename,
-                            filePath = progress.filePath
-                        ))
-                    }
-                    is DownloadProgress.Error -> {
-                        emit(BatchDownloadResult.Error(
-                            id = request.id,
-                            filename = request.filename,
-                            error = progress.error
-                        ))
-                    }
-                    else -> {
-                        // Ignore Started and Progress for batch results
+            try {
+                downloadWithProgress(request.downloadUrl, request.filename).collect { progress ->
+                    when (progress) {
+                        is DownloadProgress.Completed -> {
+                            emit(BatchDownloadResult.Success(
+                                id = request.id,
+                                filename = request.filename,
+                                filePath = progress.filePath
+                            ))
+                        }
+                        is DownloadProgress.Error -> {
+                            emit(BatchDownloadResult.Error(
+                                id = request.id,
+                                filename = request.filename,
+                                error = progress.error
+                            ))
+                        }
+                        else -> {
+                            // Ignore Started and Progress for batch results
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                emit(BatchDownloadResult.Error(
+                    id = request.id,
+                    filename = request.filename,
+                    error = e.message ?: "Download failed"
+                ))
             }
         }
     }.flowOn(Dispatchers.IO)

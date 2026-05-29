@@ -56,7 +56,9 @@ class DownloadVideoUseCase @Inject constructor(
             errorMessage.contains("timeout", ignoreCase = true) -> ErrorType.TIMEOUT
             errorMessage.contains("connection", ignoreCase = true) -> ErrorType.NETWORK
             errorMessage.contains("server", ignoreCase = true) -> ErrorType.SERVER
-            errorMessage.contains("storage", ignoreCase = true) -> ErrorType.STORAGE
+            errorMessage.contains("no space left", ignoreCase = true) ||
+            errorMessage.contains("enospc", ignoreCase = true) ||
+            errorMessage.contains("not enough storage", ignoreCase = true) -> ErrorType.STORAGE
             errorMessage.contains("invalid", ignoreCase = true) -> ErrorType.INVALID_URL
             else -> ErrorType.UNKNOWN
         }

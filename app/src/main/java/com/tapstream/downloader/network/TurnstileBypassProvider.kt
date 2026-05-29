@@ -195,6 +195,9 @@ class TurnstileBypassProvider @Inject constructor(
             try {
                 val client = OkHttpClient.Builder()
                     .followRedirects(true)
+                    .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    .callTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                     .build()
                 
                 val cookieManager = CookieManager.getInstance()
