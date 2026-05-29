@@ -138,11 +138,11 @@ object NetworkModule {
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .connectionPool(connectionPool)
-            .connectTimeout(45, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(90, TimeUnit.SECONDS)
+            .readTimeout(90, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
-            .callTimeout(75, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(false)
+            .callTimeout(0, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .addInterceptor(loggingInterceptor)
             .build()
     }
@@ -163,7 +163,7 @@ object NetworkModule {
             .readTimeout(300, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .callTimeout(0, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(false)
+            .retryOnConnectionFailure(true)
             .addInterceptor(loggingInterceptor)
             .build()
     }

@@ -57,12 +57,12 @@ class DownloadHistoryManager(context: Context) {
             return false // Don't block generic filenames - they're not unique enough
         }
         
-        // For regular files with meaningful names, check by filename prefix (first 30 characters)
-        val prefix = filename.take(30) // Increased from 20 to 30 for better uniqueness
+        // For regular files with meaningful names, check by filename prefix (first 50 characters)
+        val prefix = filename.take(50)
         return prefs.all.keys.any { key ->
             key.startsWith("filename_") && try {
                 val storedFilename = prefs.getString(key, "") ?: ""
-                storedFilename.take(30) == prefix && storedFilename.length > 15 // Avoid very short generic names
+                storedFilename.take(50) == prefix && storedFilename.length > 15 // Avoid very short generic names
             } catch (e: ClassCastException) {
                 // Skip keys that aren't strings
                 false
@@ -108,11 +108,11 @@ class DownloadHistoryManager(context: Context) {
         }
         
         // For regular files, check by prefix
-        val prefix = filename.take(30)
+        val prefix = filename.take(50)
         val matchingKey = prefs.all.keys.find { key ->
             key.startsWith("filename_") && try {
                 val storedFilename = prefs.getString(key, "") ?: ""
-                storedFilename.take(30) == prefix && storedFilename.length > 15
+                storedFilename.take(50) == prefix && storedFilename.length > 15
             } catch (e: ClassCastException) {
                 false
             }
@@ -134,22 +134,25 @@ class DownloadHistoryManager(context: Context) {
         }
     }
     
+    private fun urlKey(url: String): String = "${url.hashCode().toString(36)}_${url.length}"
+
     fun isAlreadyDownloadedByUrlHash(url: String): Boolean {
-        val urlHash = url.hashCode().toString()
-        return prefs.contains("url_hash_$urlHash")
+        val newKey = "url_hash_${urlKey(url)}"
+        val legacyKey = "url_hash_${url.hashCode()}"
+        return prefs.contains(newKey) || prefs.contains(legacyKey)
     }
-    
+
     fun markAsDownloadedByFilename(filename: String, url: String) {
         val timestamp = System.currentTimeMillis()
         prefs.edit().apply {
             putString("filename_$timestamp", filename)
             putString("url_$timestamp", url)
             putLong("timestamp_$timestamp", timestamp)
-            
-            // Also mark by URL hash for exact URL matching
-            val urlHash = url.hashCode().toString()
-            putBoolean("url_hash_$urlHash", true)
-            putLong("url_hash_${urlHash}_time", timestamp)
+
+            // Also mark by URL key for exact URL matching
+            val urlKey = urlKey(url)
+            putBoolean("url_hash_$urlKey", true)
+            putLong("url_hash_${urlKey}_time", timestamp)
             
             // Mark by video ID if extractable
             extractVideoIdFromFilename(filename)?.let { videoId ->

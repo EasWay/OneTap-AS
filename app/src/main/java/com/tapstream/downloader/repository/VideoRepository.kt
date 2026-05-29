@@ -198,8 +198,11 @@ class VideoRepository @Inject constructor(
             if ((response.type == "multi_image" || response.type == "multi_video") && !response.files.isNullOrEmpty()) {
                 Log.i(tag, "📸 Multi-${response.type} response: ${response.files.size} files")
                 val result = handleMultipleDownloads(context, response, videoUrl)
-                // Emit completion for multi-media
-                emit(DownloadProgress.Completed(UUID.randomUUID().toString(), response.type ?: "multi_media", result, 0L))
+                if (result.startsWith("❌")) {
+                    emit(DownloadProgress.Error(UUID.randomUUID().toString(), response.type ?: "multi_media", result))
+                } else {
+                    emit(DownloadProgress.Completed(UUID.randomUUID().toString(), response.type ?: "multi_media", result, 0L))
+                }
                 return@flow
             }
             
@@ -871,8 +874,8 @@ class VideoRepository @Inject constructor(
                     if (apiResponse.code() in 500..599 || apiResponse.code() == 408) {
                         lastException = kotlin.Exception(errorMessage)
                         if (attempt < retryCount - 1) {
-                            Log.i(tag, "🔄 Server error, retrying in 5 seconds...")
-                            kotlinx.coroutines.delay(5000)
+                            Log.i(tag, "🔄 Server error, retrying in 15 seconds...")
+                            kotlinx.coroutines.delay(15_000)
                             return@repeat
                         }
                     }
@@ -961,8 +964,8 @@ class VideoRepository @Inject constructor(
                 if (e.code() in 500..599 || e.code() == 408) {
                     // Server error or timeout, retry
                     if (attempt < retryCount - 1) {
-                        Log.i(tag, "🔄 HTTP error ${e.code()}, retrying in 5 seconds...")
-                        kotlinx.coroutines.delay(5000)
+                        Log.i(tag, "🔄 HTTP error ${e.code()}, retrying in 15 seconds...")
+                        kotlinx.coroutines.delay(15_000)
                         return@repeat
                     }
                 }
@@ -975,8 +978,8 @@ class VideoRepository @Inject constructor(
                 Log.e(tag, "💡 This is normal for Render free tier - server needs time to wake up")
                 
                 if (attempt < retryCount - 1) {
-                    Log.i(tag, "🔄 Timeout, retrying in 8 seconds...")
-                    kotlinx.coroutines.delay(8000) // Longer delay for timeouts
+                    Log.i(tag, "🔄 Timeout, retrying in 20 seconds...")
+                    kotlinx.coroutines.delay(20_000)
                     return@repeat
                 }
                 
@@ -987,8 +990,8 @@ class VideoRepository @Inject constructor(
                 Log.e(tag, "🔌 Connection failed (attempt ${attempt + 1}/$retryCount): ${e.message}")
                 
                 if (attempt < retryCount - 1) {
-                    Log.i(tag, "🔄 Connection failed, retrying in 5 seconds...")
-                    kotlinx.coroutines.delay(5000)
+                    Log.i(tag, "🔄 Connection failed, retrying in 20 seconds...")
+                    kotlinx.coroutines.delay(20_000)
                     return@repeat
                 }
                 
@@ -999,8 +1002,8 @@ class VideoRepository @Inject constructor(
                 Log.e(tag, "🌐 DNS resolution failed (attempt ${attempt + 1}/$retryCount): ${e.message}")
                 
                 if (attempt < retryCount - 1) {
-                    Log.i(tag, "🔄 DNS error, retrying in 3 seconds...")
-                    kotlinx.coroutines.delay(3000)
+                    Log.i(tag, "🔄 DNS error, retrying in 10 seconds...")
+                    kotlinx.coroutines.delay(10_000)
                     return@repeat
                 }
                 
@@ -1018,8 +1021,8 @@ class VideoRepository @Inject constructor(
                 Log.e(tag, "Exception message: ${e.message}")
                 
                 if (attempt < retryCount - 1) {
-                    Log.i(tag, "🔄 Exception occurred, retrying in 3 seconds...")
-                    kotlinx.coroutines.delay(3000)
+                    Log.i(tag, "🔄 Exception occurred, retrying in 10 seconds...")
+                    kotlinx.coroutines.delay(10_000)
                     return@repeat
                 } else {
                     Log.e(tag, "Exception details: ", e)
@@ -1225,7 +1228,7 @@ class VideoRepository @Inject constructor(
                 errorMsg.contains("socket") || errorMsg.contains("timeout") || 
                 errorMsg.contains("reset") || errorMsg.contains("broken pipe") ->
                     ErrorMapper.mapNetworkError(e)
-                errorMsg.contains("space") || errorMsg.contains("storage") ->
+                errorMsg.contains("no space left on device") || errorMsg.contains("enospc") ->
                     "💾 Not enough storage space on device. Please free up some space and try again."
                 else -> "💾 Storage error: Unable to save file - ${e.message}"
             }

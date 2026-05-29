@@ -186,24 +186,22 @@ class BubbleService : Service() {
                             withContext(Dispatchers.Main) {
                                 Log.i(TAG, "🎉 Video download completed successfully")
                                 SonnerToast.showDownloadSuccess(applicationContext)
-                                updateBubbleAppearance(false)
-                                isDownloading = false
                             }
                         }
                         is DownloadProgress.Error -> {
                             withContext(Dispatchers.Main) {
                                 Log.e(TAG, "❌ Video download failed: ${progress.error}")
                                 val errorMessage = when {
-                                    progress.error.contains("Network", ignoreCase = true) || 
-                                    progress.error.contains("internet", ignoreCase = true) || 
+                                    progress.error.contains("Network", ignoreCase = true) ||
+                                    progress.error.contains("internet", ignoreCase = true) ||
                                     progress.error.contains("connection", ignoreCase = true) -> {
                                         "No connection"
                                     }
                                     progress.error.contains("timeout", ignoreCase = true) -> {
                                         "Timeout"
                                     }
-                                    progress.error.contains("Storage", ignoreCase = true) || 
-                                    progress.error.contains("space", ignoreCase = true) -> {
+                                    progress.error.contains("not enough storage", ignoreCase = true) ||
+                                    progress.error.contains("no space left", ignoreCase = true) -> {
                                         "Storage full"
                                     }
                                     progress.error.contains("Already downloaded") -> {
@@ -214,18 +212,19 @@ class BubbleService : Service() {
                                     }
                                 }
                                 SonnerToast.showDownloadFailed(applicationContext, errorMessage)
-                                updateBubbleAppearance(false)
-                                isDownloading = false
                             }
                         }
                         else -> {} // Started and Progress are handled above
                     }
                 }
-                
+
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
+                withContext(NonCancellable + Dispatchers.Main) {
                     Log.e(TAG, "❌ Download exception: ${e.message}")
                     SonnerToast.showDownloadFailed(applicationContext, "Failed")
+                }
+            } finally {
+                withContext(NonCancellable + Dispatchers.Main) {
                     updateBubbleAppearance(false)
                     isDownloading = false
                 }
