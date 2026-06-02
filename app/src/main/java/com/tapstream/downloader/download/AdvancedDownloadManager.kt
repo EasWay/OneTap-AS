@@ -52,6 +52,8 @@ class AdvancedDownloadManager @Inject constructor(
             val response = client.newCall(request).execute()
             
             if (!response.isSuccessful) {
+                val errorBody = try { response.body?.string()?.take(300) } catch (e: Exception) { null }
+                if (!errorBody.isNullOrEmpty()) Log.e(tag, "Stream error body: $errorBody")
                 send(DownloadProgress.Error(id, filename, "HTTP ${response.code}"))
                 close()
                 return@channelFlow

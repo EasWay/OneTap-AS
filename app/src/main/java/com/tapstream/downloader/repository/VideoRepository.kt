@@ -246,89 +246,100 @@ class VideoRepository @Inject constructor(
                 return@flow
             }
             
-            // Detect if this is a direct URL (YouTube) or stream proxy URL
-            val isDirectUrl = response.getActualDownloadUrl()?.startsWith("http") == true
-            
-            Log.d(tag, "🔍 Download URL analysis:")
-            Log.d(tag, "   - Raw URL: ${response.getActualDownloadUrl()}")
-            Log.d(tag, "   - Is Direct URL: $isDirectUrl")
-            Log.d(tag, "   - Platform: ${response.platform}")
-            
-            val downloadUrl = if (isDirectUrl) {
-                // Direct URL (YouTube) - ensure HTTPS
-                val rawUrl = response.getActualDownloadUrl()!!
-                val secureUrl = if (rawUrl.startsWith("http://")) {
-                    rawUrl.replace("http://", "https://")
+            // Retry loop for transient HTTP 5xx stream errors
+            var currentResponse = response
+            var streamAttempt = 0
+            while (true) {
+                val isDirectUrl = currentResponse.getActualDownloadUrl()?.startsWith("http") == true
+
+                Log.d(tag, "🔍 Download URL analysis:")
+                Log.d(tag, "   - Raw URL: ${currentResponse.getActualDownloadUrl()}")
+                Log.d(tag, "   - Is Direct URL: $isDirectUrl")
+                Log.d(tag, "   - Platform: ${currentResponse.platform}")
+
+                val downloadUrl = if (isDirectUrl) {
+                    val rawUrl = currentResponse.getActualDownloadUrl()!!
+                    val secureUrl = if (rawUrl.startsWith("http://")) rawUrl.replace("http://", "https://") else rawUrl
+                    Log.i(tag, "📱 Direct URL detected for $platform")
+                    Log.d(tag, "   - Full URL: $secureUrl")
+                    Log.d(tag, "   - URL length: ${secureUrl.length}")
+                    Log.d(tag, "   - URL host: ${java.net.URL(secureUrl).host}")
+                    secureUrl
                 } else {
-                    rawUrl
+                    val baseUrl = getBaseUrlForPlatform(platform)
+                    val fullUrl = "${baseUrl.trimEnd('/')}${currentResponse.getActualDownloadUrl()}"
+                    Log.i(tag, "📱 Using ${if (platform == "youtube") "YouTube" else "main"} server stream proxy")
+                    Log.d(tag, "   - Relative path: ${currentResponse.getActualDownloadUrl()}")
+                    Log.d(tag, "   - Full URL: $fullUrl")
+                    fullUrl
                 }
-                Log.i(tag, "📱 Direct URL detected for ${detectPlatform(videoUrl)}")
-                Log.d(tag, "   - Full URL: $secureUrl")
-                Log.d(tag, "   - URL length: ${secureUrl.length}")
-                Log.d(tag, "   - URL host: ${java.net.URL(secureUrl).host}")
-                secureUrl
-            } else {
-                // Server relative URL (stream proxy) - prepend appropriate base URL
-                val platform = detectPlatform(videoUrl)
-                val baseUrl = getBaseUrlForPlatform(platform)
-                val fullUrl = "${baseUrl.trimEnd('/')}${response.getActualDownloadUrl()}"
-                Log.i(tag, "📱 Using ${if (platform == "youtube") "YouTube" else "main"} server stream proxy")
-                Log.d(tag, "   - Relative path: ${response.getActualDownloadUrl()}")
-                Log.d(tag, "   - Full URL: $fullUrl")
-                fullUrl
-            }
-            
-            Log.i(tag, "🚀 Starting download with AdvancedDownloadManager")
-            Log.d(tag, "   - Filename: $filename")
-            Log.d(tag, "   - Download URL: ${downloadUrl.take(100)}...")
-            
-            // Use advanced download manager for all platforms
-            advancedDownloadManager.downloadWithProgress(downloadUrl, filename, response.size).collect { progress ->
-                progressCallback?.invoke(progress)
-                
-                when (progress) {
-                    is DownloadProgress.Started -> {
-                        Log.i(tag, "🎯 Started download: ${progress.filename}")
-                    }
-                    is DownloadProgress.Completed -> {
-                        // Save to gallery - detect file type
-                        val platform = detectPlatform(videoUrl)
-                        val isImage = filename.lowercase().let { name ->
-                            name.endsWith(".jpg") || name.endsWith(".jpeg") || 
-                            name.endsWith(".png") || name.endsWith(".webp") || 
-                            name.endsWith(".gif")
+
+                Log.i(tag, "🚀 Starting download with AdvancedDownloadManager")
+                Log.d(tag, "   - Filename: $filename")
+                Log.d(tag, "   - Download URL: ${downloadUrl.take(100)}...")
+
+                var shouldRetryStream = false
+                advancedDownloadManager.downloadWithProgress(downloadUrl, filename, currentResponse.size).collect { progress ->
+                    progressCallback?.invoke(progress)
+
+                    when (progress) {
+                        is DownloadProgress.Started -> {
+                            Log.i(tag, "🎯 Started download: ${progress.filename}")
                         }
-                        val isAudio = isMusicPlatform(platform) || filename.lowercase().let { name ->
-                            name.endsWith(".mp3") || name.endsWith(".m4a") || 
-                            name.endsWith(".wav") || name.endsWith(".flac") || 
-                            name.endsWith(".aac")
-                        }
-                        
-                        try {
-                            saveToGallery(context, progress.filePath, isImage, isAudio)
-                            downloadHistoryManager.markAsDownloadedByFilename(filename, videoUrl)
-                            
-                            val mediaType = when {
-                                isImage -> "image"
-                                isAudio -> "music"
-                                else -> "video"
+                        is DownloadProgress.Completed -> {
+                            val isImage = filename.lowercase().let { name ->
+                                name.endsWith(".jpg") || name.endsWith(".jpeg") ||
+                                name.endsWith(".png") || name.endsWith(".webp") ||
+                                name.endsWith(".gif")
                             }
-                            Log.i(tag, "✅ Enhanced $mediaType download completed: $filename")
-                        } catch (e: Exception) {
-                            Log.e(tag, "❌ Failed to save to gallery: ${e.message}")
-                            emit(DownloadProgress.Error(progress.id, filename, "Failed to save: ${e.message}"))
-                            return@collect
+                            val isAudio = isMusicPlatform(platform) || filename.lowercase().let { name ->
+                                name.endsWith(".mp3") || name.endsWith(".m4a") ||
+                                name.endsWith(".wav") || name.endsWith(".flac") ||
+                                name.endsWith(".aac")
+                            }
+                            try {
+                                saveToGallery(context, progress.filePath, isImage, isAudio)
+                                downloadHistoryManager.markAsDownloadedByFilename(filename, videoUrl)
+                                val mediaType = when {
+                                    isImage -> "image"
+                                    isAudio -> "music"
+                                    else -> "video"
+                                }
+                                Log.i(tag, "✅ Enhanced $mediaType download completed: $filename")
+                            } catch (e: Exception) {
+                                Log.e(tag, "❌ Failed to save to gallery: ${e.message}")
+                                emit(DownloadProgress.Error(progress.id, filename, "Failed to save: ${e.message}"))
+                                return@collect
+                            }
+                        }
+                        is DownloadProgress.Error -> {
+                            if (progress.error.startsWith("HTTP 5") && streamAttempt < 1) {
+                                Log.w(tag, "⚠️ Stream returned ${progress.error}, retrying with fresh URL...")
+                                shouldRetryStream = true
+                                return@collect
+                            }
+                            Log.e(tag, "❌ Enhanced download failed: ${progress.error}")
+                        }
+                        is DownloadProgress.Progress -> {
+                            val speedMBps = progress.speed / 1024 / 1024
+                            Log.d(tag, "📊 Progress: ${progress.percentage.toInt()}% (${speedMBps}MB/s)")
                         }
                     }
-                    is DownloadProgress.Error -> {
-                        Log.e(tag, "❌ Enhanced download failed: ${progress.error}")
-                    }
-                    is DownloadProgress.Progress -> {
-                        val speedMBps = progress.speed / 1024 / 1024
-                        Log.d(tag, "📊 Progress: ${progress.percentage.toInt()}% (${speedMBps}MB/s)")
-                    }
+                    emit(progress)
                 }
-                emit(progress)
+
+                if (!shouldRetryStream) break
+
+                streamAttempt++
+                Log.i(tag, "🔄 Retrying stream download with fresh URL (attempt ${streamAttempt + 1}/2)...")
+                kotlinx.coroutines.delay(1000)
+                try {
+                    currentResponse = getServerProcessedResponse(videoUrl, 1)
+                } catch (e: Exception) {
+                    Log.e(tag, "❌ Failed to get fresh stream URL: ${e.message}")
+                    emit(DownloadProgress.Error(UUID.randomUUID().toString(), filename, "HTTP 500"))
+                    break
+                }
             }
             
         } catch (e: Exception) {
