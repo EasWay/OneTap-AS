@@ -597,14 +597,22 @@ class VideoRepository @Inject constructor(
             }
         }
         
-        val uri = context.contentResolver.insert(
-            when {
-                isImage -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                isAudio -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                else -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-            },
-            contentValues
-        ) ?: throw Exception("Failed to create media store entry")
+        val collection = when {
+            isImage -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            isAudio -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            else -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        }
+
+        // Remove any owned MediaStore entry for this filename before inserting to avoid
+        // "Failed to build unique file" caused by orphaned entries from prior failed downloads
+        context.contentResolver.delete(
+            collection,
+            "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
+            arrayOf(file.name)
+        )
+
+        val uri = context.contentResolver.insert(collection, contentValues)
+            ?: throw Exception("Failed to create media store entry")
         
         context.contentResolver.openOutputStream(uri)?.use { outputStream ->
             file.inputStream().use { inputStream ->
