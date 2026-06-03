@@ -553,7 +553,7 @@ class VideoRepository @Inject constructor(
     }
 
     /**
-     * Save file to gallery
+     * Save file to gallery using specific MIME types to avoid MediaStore "Failed to build unique file" errors
      */
     private fun saveToGallery(context: Context, filePath: String, isImage: Boolean, isAudio: Boolean = false) {
         val file = java.io.File(filePath)
@@ -561,13 +561,35 @@ class VideoRepository @Inject constructor(
             throw Exception("File does not exist: $filePath")
         }
         
+        val ext = file.extension.lowercase()
+        val mimeType = when {
+            isImage -> when (ext) {
+                "jpg", "jpeg" -> "image/jpeg"
+                "png" -> "image/png"
+                "webp" -> "image/webp"
+                "gif" -> "image/gif"
+                else -> "image/jpeg"
+            }
+            isAudio -> when (ext) {
+                "mp3" -> "audio/mpeg"
+                "m4a" -> "audio/mp4"
+                "wav" -> "audio/wav"
+                "flac" -> "audio/flac"
+                "aac" -> "audio/aac"
+                else -> "audio/mpeg"
+            }
+            else -> when (ext) {
+                "mp4" -> "video/mp4"
+                "webm" -> "video/webm"
+                "mkv" -> "video/x-matroska"
+                "3gp" -> "video/3gpp"
+                else -> "video/mp4"
+            }
+        }
+
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
-            when {
-                isImage -> put(MediaStore.MediaColumns.MIME_TYPE, "image/*")
-                isAudio -> put(MediaStore.MediaColumns.MIME_TYPE, "audio/*")
-                else -> put(MediaStore.MediaColumns.MIME_TYPE, "video/*")
-            }
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
             when {
                 isImage -> put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
                 isAudio -> put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_MUSIC)
