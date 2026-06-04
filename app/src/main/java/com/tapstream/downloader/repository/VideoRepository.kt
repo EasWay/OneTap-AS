@@ -552,6 +552,9 @@ class VideoRepository @Inject constructor(
         }
     }
 
+    // @Synchronized ensures only one saveToGallery runs at a time, preventing the race window
+    // between delete() and insert() when two downloads compete for the same filename.
+    @Synchronized
     private fun saveToGallery(context: Context, filePath: String, isImage: Boolean, isAudio: Boolean = false) {
         val file = java.io.File(filePath)
         if (!file.exists()) {
@@ -584,8 +587,8 @@ class VideoRepository @Inject constructor(
             }
         }
 
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
+        fun makeValues(displayName: String) = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
             when {
                 isImage -> put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
@@ -600,47 +603,33 @@ class VideoRepository @Inject constructor(
             else -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         }
 
-        // On Android Q (API 29) IS_PENDING=1 entries are invisible to plain queries/deletes.
-        // setIncludePending() ensures orphaned pending entries are also removed.
+        // Only delete IS_PENDING=1 orphan entries from prior crashed downloads.
+        // Never delete IS_PENDING=0 (completed) entries — those are legitimate user downloads.
         val deleteUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             MediaStore.setIncludePending(collection)
         } else {
             collection
         }
-        val deleted = context.contentResolver.delete(
-            deleteUri,
-            "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
-            arrayOf(file.name)
-        )
-        Log.d(tag, "🗑️ Pre-delete: removed $deleted MediaStore entries for ${file.name}")
-
-        // Also delete any physical file already at the target gallery path so MediaStore's
-        // filesystem uniqueness check doesn't block the insert.
-        val targetDir = when {
-            isImage -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-            isAudio -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
-            else -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+        val pendingWhere = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            "${MediaStore.MediaColumns.IS_PENDING} = 1 AND ${MediaStore.MediaColumns.DISPLAY_NAME} = ?"
+        } else {
+            "${MediaStore.MediaColumns.DISPLAY_NAME} = ?"
         }
-        val existingGalleryFile = java.io.File(targetDir, file.name)
-        if (existingGalleryFile.exists()) {
-            existingGalleryFile.delete()
-            Log.d(tag, "🗑️ Deleted orphaned gallery file: ${existingGalleryFile.absolutePath}")
-        }
+        val deleted = context.contentResolver.delete(deleteUri, pendingWhere, arrayOf(file.name))
+        Log.d(tag, "🗑️ Pre-delete: removed $deleted pending entries for ${file.name}")
 
+        // Try with the original filename first; if a completed entry already exists (concurrent
+        // download or legitimate prior save), fall back to a unique timestamped name so we
+        // never fail and never overwrite a legitimate user download.
         val uri = try {
-            context.contentResolver.insert(collection, contentValues)
+            context.contentResolver.insert(collection, makeValues(file.name))
                 ?: throw Exception("Failed to create media store entry")
         } catch (e: Exception) {
             if (e.message?.contains("Failed to build unique file") == true) {
-                // Race condition: a concurrent insert beat us. Re-delete and retry once.
-                Log.w(tag, "⚠️ Failed to build unique file — re-deleting and retrying once")
-                context.contentResolver.delete(
-                    deleteUri,
-                    "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
-                    arrayOf(file.name)
-                )
-                context.contentResolver.insert(collection, contentValues)
-                    ?: throw Exception("Failed to create media store entry after retry")
+                val uniqueName = "${file.nameWithoutExtension}_${System.currentTimeMillis()}.$ext"
+                Log.w(tag, "⚠️ Name conflict for '${file.name}' — saving as '$uniqueName'")
+                context.contentResolver.insert(collection, makeValues(uniqueName))
+                    ?: throw Exception("Failed to create media store entry: $uniqueName")
             } else {
                 throw e
             }
