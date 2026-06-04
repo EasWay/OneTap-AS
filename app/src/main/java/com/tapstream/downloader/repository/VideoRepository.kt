@@ -552,15 +552,12 @@ class VideoRepository @Inject constructor(
         }
     }
 
-    /**
-     * Save file to gallery using specific MIME types to avoid MediaStore "Failed to build unique file" errors
-     */
     private fun saveToGallery(context: Context, filePath: String, isImage: Boolean, isAudio: Boolean = false) {
         val file = java.io.File(filePath)
         if (!file.exists()) {
             throw Exception("File does not exist: $filePath")
         }
-        
+
         val ext = file.extension.lowercase()
         val mimeType = when {
             isImage -> when (ext) {
@@ -596,34 +593,67 @@ class VideoRepository @Inject constructor(
                 else -> put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_MOVIES)
             }
         }
-        
+
         val collection = when {
             isImage -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
             isAudio -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             else -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         }
 
-        // Remove any owned MediaStore entry for this filename before inserting to avoid
-        // "Failed to build unique file" caused by orphaned entries from prior failed downloads
-        context.contentResolver.delete(
-            collection,
+        // On Android Q (API 29) IS_PENDING=1 entries are invisible to plain queries/deletes.
+        // setIncludePending() ensures orphaned pending entries are also removed.
+        val deleteUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            MediaStore.setIncludePending(collection)
+        } else {
+            collection
+        }
+        val deleted = context.contentResolver.delete(
+            deleteUri,
             "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
             arrayOf(file.name)
         )
+        Log.d(tag, "🗑️ Pre-delete: removed $deleted MediaStore entries for ${file.name}")
 
-        val uri = context.contentResolver.insert(collection, contentValues)
-            ?: throw Exception("Failed to create media store entry")
-        
+        // Also delete any physical file already at the target gallery path so MediaStore's
+        // filesystem uniqueness check doesn't block the insert.
+        val targetDir = when {
+            isImage -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+            isAudio -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+            else -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+        }
+        val existingGalleryFile = java.io.File(targetDir, file.name)
+        if (existingGalleryFile.exists()) {
+            existingGalleryFile.delete()
+            Log.d(tag, "🗑️ Deleted orphaned gallery file: ${existingGalleryFile.absolutePath}")
+        }
+
+        val uri = try {
+            context.contentResolver.insert(collection, contentValues)
+                ?: throw Exception("Failed to create media store entry")
+        } catch (e: Exception) {
+            if (e.message?.contains("Failed to build unique file") == true) {
+                // Race condition: a concurrent insert beat us. Re-delete and retry once.
+                Log.w(tag, "⚠️ Failed to build unique file — re-deleting and retrying once")
+                context.contentResolver.delete(
+                    deleteUri,
+                    "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",
+                    arrayOf(file.name)
+                )
+                context.contentResolver.insert(collection, contentValues)
+                    ?: throw Exception("Failed to create media store entry after retry")
+            } else {
+                throw e
+            }
+        }
+
         context.contentResolver.openOutputStream(uri)?.use { outputStream ->
             file.inputStream().use { inputStream ->
-                // Use Okio for fast copying
                 StreamUtils.copyFast(inputStream, outputStream)
             }
         } ?: throw Exception("Failed to open output stream")
-        
-        // Delete temporary file
+
         file.delete()
-        
+
         val mediaType = when {
             isImage -> "image"
             isAudio -> "music"
