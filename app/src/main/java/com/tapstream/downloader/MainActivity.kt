@@ -109,8 +109,6 @@ fun MinimalScreen(updateManager: UpdateManager) {
     var showTutorial by remember { mutableStateOf(false) }
     var showUpdateDialog by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<com.tapstream.downloader.utils.UpdateInfo?>(null) }
-    var isUpdating by remember { mutableStateOf(false) }
-    var updateProgress by remember { mutableStateOf(0) }
     
     // Derive status message from UI state
     val statusMessage = when (uiState) {
@@ -257,28 +255,20 @@ fun MinimalScreen(updateManager: UpdateManager) {
         UpdateDialog(
             updateInfo = updateInfo!!,
             onUpdateClick = {
-                if (updateInfo!!.playStoreUrl != null) {
-                    try {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo!!.playStoreUrl))
-                        context.startActivity(intent)
-                    } catch (e: Exception) {
-                        Log.e("OneTap_MainActivity", "Failed to open Play Store: ${e.message}")
-                    }
-                } else {
-                    isUpdating = true
-                    updateManager.downloadAndInstallUpdate(
-                        updateInfo!!
-                    ) { progress ->
-                        updateProgress = progress
-                    }
+                val url = updateInfo!!.playStoreUrl ?: updateInfo!!.downloadUrl
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e("OneTap_MainActivity", "Failed to open update URL: ${e.message}")
                 }
+                showUpdateDialog = false
+                updateInfo = null
             },
             onDismiss = {
                 showUpdateDialog = false
                 updateInfo = null
-            },
-            isDownloading = isUpdating,
-            downloadProgress = updateProgress
+            }
         )
     }
     

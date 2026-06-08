@@ -1,6 +1,5 @@
 package com.tapstream.downloader.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -20,15 +19,13 @@ import com.tapstream.downloader.utils.UpdateInfo
 fun UpdateDialog(
     updateInfo: UpdateInfo,
     onUpdateClick: () -> Unit,
-    onDismiss: () -> Unit,
-    isDownloading: Boolean = false,
-    downloadProgress: Int = 0
+    onDismiss: () -> Unit
 ) {
     Dialog(
-        onDismissRequest = { if (!isDownloading) onDismiss() },
+        onDismissRequest = { onDismiss() },
         properties = DialogProperties(
-            dismissOnBackPress = !isDownloading,
-            dismissOnClickOutside = !isDownloading
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
         )
     ) {
         Card(
@@ -42,7 +39,6 @@ fun UpdateDialog(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Title
                 Text(
                     text = "Update Available",
                     fontSize = 20.sp,
@@ -50,20 +46,18 @@ fun UpdateDialog(
                     color = Color.White,
                     textAlign = TextAlign.Center
                 )
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Version info
+
                 Text(
                     text = "Version ${updateInfo.versionName} is now available!",
                     fontSize = 16.sp,
                     color = Color.White,
                     textAlign = TextAlign.Center
                 )
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
-                // Release notes
+
                 Text(
                     text = updateInfo.releaseNotes,
                     fontSize = 14.sp,
@@ -71,78 +65,32 @@ fun UpdateDialog(
                     textAlign = TextAlign.Center,
                     lineHeight = 20.sp
                 )
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
-                // Download progress (if downloading)
-                if (isDownloading) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Button(
+                        onClick = onUpdateClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White)
                     ) {
                         Text(
-                            text = "Downloading... $downloadProgress%",
-                            fontSize = 14.sp,
-                            color = Color.White,
-                            textAlign = TextAlign.Center
+                            text = if (updateInfo.playStoreUrl != null) "Update on Play Store" else "Get Update",
+                            color = Color.Black
                         )
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        LinearProgressIndicator(
-                            progress = downloadProgress / 100f,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(4.dp),
-                            color = Color.White,
-                            trackColor = Color.Gray
-                        )
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
-                }
-                
-                // Buttons
-                if (!isDownloading) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        if (updateInfo.playStoreUrl != null) {
-                            Button(
-                                onClick = onUpdateClick,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.White)
-                            ) {
-                                Text("Update on Play Store", color = Color.Black)
-                            }
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                        } else {
-                            Button(
-                                onClick = onUpdateClick,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.White)
-                            ) {
-                                Text("Update Now", color = Color.Black)
-                            }
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-                        
-                        TextButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Later", color = Color.Gray)
-                        }
+                        Text("Later", color = Color.Gray)
                     }
-                } else {
-                    Text(
-                        text = "Please wait while the update downloads...",
-                        fontSize = 12.sp,
-                        color = Color.Gray,
-                        textAlign = TextAlign.Center
-                    )
                 }
             }
         }
